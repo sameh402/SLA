@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getCourseCategories } from "@/hooks/useDjangoCourses";
+
 import {
   Select,
   SelectContent,
@@ -53,6 +55,8 @@ export default function CoursesPage() {
   const [isEgyptUser, setIsEgyptUser] = useState<boolean | null>(null);
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState("All");
+
    // 1️⃣ Detect user's country
   useEffect(() => {
     const detectLocation = async () => {
@@ -126,75 +130,170 @@ export default function CoursesPage() {
   }, [searchParams]);
 
   // Transform Django courses for display
-  const transformedCourses = djangoCoursesData?.results?.map(course => {
-    const transformed = transformCourseForDisplay(course);
+  // const transformedCourses = djangoCoursesData?.results?.map(course => {
+  //   const transformed = transformCourseForDisplay(course);
     
-    // Determine category based on course title/description
-    let category = 'General';
-    const title = course.title.toLowerCase();
-    const desc = course.description.toLowerCase();
+  //   // Determine category based on course title/description
+  //   let category = 'General';
+  //   const title = course.title.toLowerCase();
+  //   const desc = course.description.toLowerCase();
     
-    if (title.includes('french') || title.includes('german') || title.includes('chinese') || 
-        title.includes('english') || title.includes('language') || title.includes('quran')) {
-      category = 'Languages';
-    } else if (title.includes('web') || title.includes('python') || title.includes('programming') || 
-               title.includes('development') || title.includes('code') || title.includes('data')) {
-      category = 'Programming';
-    } else if (title.includes('design') || title.includes('art') || title.includes('graphic') || 
-               title.includes('creative') || title.includes('calligraphy')) {
-      category = 'Design';
-    } else if (title.includes('health') || title.includes('medical') || title.includes('hospital') || 
-               title.includes('first aid') || title.includes('nutrition')) {
-      category = 'Healthcare';
-    } else if (title.includes('business') || title.includes('management') || title.includes('marketing') || 
-               title.includes('project') || title.includes('leadership')) {
-      category = 'Business';
-    } else if (title.includes('math') || title.includes('calculation') || title.includes('logic') || 
-               title.includes('vedic')) {
-      category = 'Mathematics';
-    }
+  //   if (title.includes('french') || title.includes('german') || title.includes('chinese') || 
+  //       title.includes('english') || title.includes('language') || title.includes('quran')) {
+  //     category = 'Languages';
+  //   } else if (title.includes('web') || title.includes('python') || title.includes('programming') || 
+  //              title.includes('development') || title.includes('code') || title.includes('data')) {
+  //     category = 'Programming';
+  //   } else if (title.includes('design') || title.includes('art') || title.includes('graphic') || 
+  //              title.includes('creative') || title.includes('calligraphy')) {
+  //     category = 'Design';
+  //   } else if (title.includes('health') || title.includes('medical') || title.includes('hospital') || 
+  //              title.includes('first aid') || title.includes('nutrition')) {
+  //     category = 'Healthcare';
+  //   } else if (title.includes('business') || title.includes('management') || title.includes('marketing') || 
+  //              title.includes('project') || title.includes('leadership')) {
+  //     category = 'Business';
+  //   } else if (title.includes('math') || title.includes('calculation') || title.includes('logic') || 
+  //              title.includes('vedic')) {
+  //     category = 'Mathematics';
+  //   }
 
-    // Generate display properties
-    const gradients = [
-      'bg-gradient-to-br from-blue-500 to-indigo-600',
-      'bg-gradient-to-br from-green-500 to-emerald-600',
-      'bg-gradient-to-br from-purple-500 to-pink-600',
-      'bg-gradient-to-br from-red-500 to-rose-600',
-      'bg-gradient-to-br from-orange-500 to-amber-600',
-      'bg-gradient-to-br from-cyan-500 to-blue-600',
-    ];
+  //   // Generate display properties
+  //   const gradients = [
+  //     'bg-gradient-to-br from-blue-500 to-indigo-600',
+  //     'bg-gradient-to-br from-green-500 to-emerald-600',
+  //     'bg-gradient-to-br from-purple-500 to-pink-600',
+  //     'bg-gradient-to-br from-red-500 to-rose-600',
+  //     'bg-gradient-to-br from-orange-500 to-amber-600',
+  //     'bg-gradient-to-br from-cyan-500 to-blue-600',
+  //   ];
 
-    return {
-      id: course.id,
-      title: course.title,
-      description: course.description,
-      image: course.thumbnail || gradients[course.id % gradients.length],
-      // price: { 
-      //   usd: `$${Math.round(transformed.price)}`, 
-      //   egp: `${Math.round(transformed.price * 16)}EGP` 
-      // },
-      // originalPrice: { 
-      //   usd: `$${Math.round(transformed.price * 1.3)}`, 
-      //   egp: `${Math.round(transformed.price * 16 * 1.3)}EGP` 
-      // },
-      priceUSD: Number(transformed.price),
-      originalPriceUSD: Number(transformed.price) * 1.3,
-      rating: 4.5 + Math.random() * 0.5, // Random rating between 4.5-5.0
-      students: Math.floor(Math.random() * 2000) + 500, // Random students 500-2500
-      duration: `${Math.floor(Math.random() * 16) + 8} weeks`, // 8-24 weeks
-      level: ['Beginner', 'Intermediate', 'Advanced'][Math.floor(Math.random() * 3)],
-      category: category,
-      instructor: {
-        name: "Course Instructor",
-        title: "Subject Matter Expert",
-        experience: `${Math.floor(Math.random() * 10) + 5} years`,
-        avatar: `https://images.unsplash.com/photo-${1494790108755 + course.id}?w=150&h=150&fit=crop&crop=face`,
-      },
-      lessons: transformed.mediaCount || Math.floor(Math.random() * 50) + 20,
-      certificate: true,
-      featured: course.id % 3 === 0, // Every 3rd course is featured
-    };
-  }) || [];
+  //   return {
+  //     id: course.id,
+  //     title: course.title,
+  //     description: course.description,
+  //     image: course.thumbnail || gradients[course.id % gradients.length],
+  //     // price: { 
+  //     //   usd: `$${Math.round(transformed.price)}`, 
+  //     //   egp: `${Math.round(transformed.price * 16)}EGP` 
+  //     // },
+  //     // originalPrice: { 
+  //     //   usd: `$${Math.round(transformed.price * 1.3)}`, 
+  //     //   egp: `${Math.round(transformed.price * 16 * 1.3)}EGP` 
+  //     // },
+  //     priceUSD: Number(transformed.price),
+  //     originalPriceUSD: Number(transformed.price) * 1.3,
+  //     rating: 4.5 + Math.random() * 0.5, // Random rating between 4.5-5.0
+  //     students: Math.floor(Math.random() * 2000) + 500, // Random students 500-2500
+  //     duration: `${Math.floor(Math.random() * 16) + 8} weeks`, // 8-24 weeks
+  //     level: ['Beginner', 'Intermediate', 'Advanced'][Math.floor(Math.random() * 3)],
+  //     category: category,
+  //     instructor: {
+  //       name: "Course Instructor",
+  //       title: "Subject Matter Expert",
+  //       experience: `${Math.floor(Math.random() * 10) + 5} years`,
+  //       avatar: `https://images.unsplash.com/photo-${1494790108755 + course.id}?w=150&h=150&fit=crop&crop=face`,
+  //     },
+  //     lessons: transformed.mediaCount || Math.floor(Math.random() * 50) + 20,
+  //     certificate: true,
+  //     featured: course.id % 3 === 0, // Every 3rd course is featured
+  //   };
+  // }) || [];
+//   const transformedCourses = djangoCoursesData?.results?.map(course => {
+//   const transformed = transformCourseForDisplay(course);
+  
+//   let category = "General";
+//   const title = course.title.toLowerCase();
+//   const desc = course.description.toLowerCase();
+
+//   if (title.includes("french") || title.includes("german") || title.includes("language") || title.includes("english") || desc.includes("language")) {
+//     category = "Languages";
+//   } else if (title.includes("python") || title.includes("programming") || title.includes("development") || title.includes("web") || desc.includes("code")) {
+//     category = "Programming";
+//   } else if (title.includes("data") || title.includes("analytics") || desc.includes("machine learning")) {
+//     category = "Data Science";
+//   } else if (title.includes("ai") || title.includes("artificial intelligence") || desc.includes("deep learning")) {
+//     category = "AI/ML";
+//   } else if (title.includes("design") || title.includes("art") || desc.includes("graphic")) {
+//     category = "Design";
+//   } else if (title.includes("business") || title.includes("marketing") || desc.includes("leadership")) {
+//     category = "Business";
+//   } else if (title.includes("market") || desc.includes("sales") || desc.includes("branding")) {
+//     category = "Marketing";
+//   }
+
+//   const gradients = [
+//     "bg-gradient-to-br from-blue-500 to-indigo-600",
+//     "bg-gradient-to-br from-green-500 to-emerald-600",
+//     "bg-gradient-to-br from-purple-500 to-pink-600",
+//     "bg-gradient-to-br from-red-500 to-rose-600",
+//     "bg-gradient-to-br from-orange-500 to-amber-600",
+//     "bg-gradient-to-br from-cyan-500 to-blue-600",
+//   ];
+
+//   return {
+//     id: course.id,
+//     title: course.title,
+//     description: course.description,
+//     image: course.thumbnail || gradients[course.id % gradients.length],
+//     priceUSD: Number(transformed.price),
+//     originalPriceUSD: Number(transformed.price) * 1.3,
+//     rating: 4.5 + Math.random() * 0.5,
+//     students: Math.floor(Math.random() * 2000) + 500,
+//     duration: `${Math.floor(Math.random() * 16) + 8} weeks`,
+//     level: ["Beginner", "Intermediate", "Advanced"][Math.floor(Math.random() * 3)],
+//     category,
+//     instructor: {
+//       name: "Course Instructor",
+//       title: "Subject Matter Expert",
+//       experience: `${Math.floor(Math.random() * 10) + 5} years`,
+//       avatar: `https://images.unsplash.com/photo-${1494790108755 + course.id}?w=150&h=150&fit=crop&crop=face`,
+//     },
+//     lessons: transformed.mediaCount || Math.floor(Math.random() * 50) + 20,
+//     certificate: true,
+//     featured: course.id % 3 === 0,
+//   };
+// }) || [];
+const transformedCourses = djangoCoursesData?.results?.map(course => {
+  const transformed = transformCourseForDisplay(course);
+
+  // ✅ Use backend category directly if exists
+  const category = course.category || "General";
+
+  const gradients = [
+    "bg-gradient-to-br from-blue-500 to-indigo-600",
+    "bg-gradient-to-br from-green-500 to-emerald-600",
+    "bg-gradient-to-br from-purple-500 to-pink-600",
+    "bg-gradient-to-br from-red-500 to-rose-600",
+    "bg-gradient-to-br from-orange-500 to-amber-600",
+    "bg-gradient-to-br from-cyan-500 to-blue-600",
+  ];
+
+  return {
+    id: course.id,
+    title: course.title,
+    description: course.description,
+    image: course.thumbnail || gradients[course.id % gradients.length],
+    priceUSD: Number(transformed.price),
+    originalPriceUSD: Number(transformed.price) * 1.3,
+    rating: 4.5 + Math.random() * 0.5,
+    students: Math.floor(Math.random() * 2000) + 500,
+    duration: `${Math.floor(Math.random() * 16) + 8} weeks`,
+    level: ["Beginner", "Intermediate", "Advanced"][Math.floor(Math.random() * 3)],
+    category, // ✅ direct from backend
+    instructor: {
+      name: "Course Instructor",
+      title: "Subject Matter Expert",
+      experience: `${Math.floor(Math.random() * 10) + 5} years`,
+      avatar: `https://images.unsplash.com/photo-${1494790108755 + course.id}?w=150&h=150&fit=crop&crop=face`,
+    },
+    lessons: transformed.mediaCount || Math.floor(Math.random() * 50) + 20,
+    certificate: true,
+    featured: course.id % 3 === 0,
+  };
+}) || [];
+
+
 
   // Fallback courses for when Django data is not available
   const fallbackCourses = [
@@ -225,39 +324,55 @@ export default function CoursesPage() {
   // Use transformed Django courses if available, otherwise fallback
   const courses = transformedCourses.length > 0 ? transformedCourses : fallbackCourses;
 
-  const categories = [
-    "All",
-    "Languages",
-    "Programming",
-    "Design",
-    "Healthcare",
-    "Business",
-    "Mathematics",
-  ];
 
-  const filteredCourses = courses.filter((course) => {
-    const matchesSearch =
-      course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      course.description.toLowerCase().includes(searchQuery.toLowerCase());
+const backendCategories = getCourseCategories(djangoCoursesData?.results || []);
+const categories = ["All", ...backendCategories.map(c => c.name)];
+// const categories = [
+//   "All",
+//   "General",
+//   "Programming",
+//   "Data Science",
+//   "AI/ML",
+//   "Design",
+//   "Business",
+//   "Marketing",
+// ];
 
-    let matchesFilter = true;
-    if (filterBy !== "all") {
-      // Map filter values to actual category names
-      const categoryMap: { [key: string]: string } = {
-        languages: "Languages",
-        development: "Programming",
-        design: "Design",
-        healthcare: "Healthcare",
-        business: "Business",
-        math: "Mathematics",
-      };
 
-      const targetCategory = categoryMap[filterBy] || filterBy;
-      matchesFilter = course.category === targetCategory;
-    }
+  // const filteredCourses = courses.filter((course) => {
+  //   const matchesSearch =
+  //     course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+  //     course.description.toLowerCase().includes(searchQuery.toLowerCase());
 
-    return matchesSearch && matchesFilter;
-  });
+  //   let matchesFilter = true;
+  //   if (filterBy !== "all") {
+  //     // Map filter values to actual category names
+  //     const categoryMap: { [key: string]: string } = {
+  //       languages: "Languages",
+  //       development: "Programming",
+  //       design: "Design",
+  //       healthcare: "Healthcare",
+  //       business: "Business",
+  //       math: "Mathematics",
+  //     };
+
+  //     const targetCategory = categoryMap[filterBy] || filterBy;
+  //     matchesFilter = course.category === targetCategory;
+  //   }
+
+  //   return matchesSearch && matchesFilter;
+  // });
+ const filteredCourses = courses.filter((course) => {
+  const matchesSearch =
+    course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    course.description.toLowerCase().includes(searchQuery.toLowerCase());
+
+  const matchesCategory =
+    selectedCategory === "All" ||
+    (course.category && course.category.toLowerCase() === selectedCategory.toLowerCase());
+
+  return matchesSearch && matchesCategory;
+});
 
   const sortedCourses = [...filteredCourses].sort((a, b) => {
     switch (sortBy) {
@@ -407,7 +522,7 @@ export default function CoursesPage() {
                   />
                 </div>
 
-                <Select value={filterBy} onValueChange={setFilterBy}>
+                {/* <Select value={filterBy} onValueChange={setFilterBy}>
                   <SelectTrigger className="h-12 bg-background/50 border-border/50">
                     <Filter className="mr-2 h-4 w-4" />
                     <SelectValue placeholder={t("courses.filter.category")} />
@@ -421,21 +536,28 @@ export default function CoursesPage() {
                     <SelectItem value="business">Business</SelectItem>
                     <SelectItem value="math">Mathematics</SelectItem>
                   </SelectContent>
-                </Select>
+                </Select> */}
+<Select
+  value={selectedCategory}                   // ✅ shows selected value
+  onValueChange={(value) => setSelectedCategory(value)} // ✅ updates when clicked
+>
+  <SelectTrigger className="h-12 bg-background/50 border-border/50">
+    <Filter className="mr-2 h-4 w-4" />
+    <SelectValue placeholder="Select category" />
+  </SelectTrigger>
 
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="h-12 bg-background/50 border-border/50">
-                    <TrendingUp className="mr-2 h-4 w-4" />
-                    <SelectValue placeholder="Sort by" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="popular">Most Popular</SelectItem>
-                    <SelectItem value="rating">Highest Rated</SelectItem>
-                    <SelectItem value="students">Most Students</SelectItem>
-                    <SelectItem value="price-low">Price: Low to High</SelectItem>
-                    <SelectItem value="price-high">Price: High to Low</SelectItem>
-                  </SelectContent>
-                </Select>
+  <SelectContent>
+    {categories.map((cat) => (
+      <SelectItem key={cat} value={cat}>
+        {cat}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
+
+
+
+
               </div>
 
               <div className="flex items-center justify-between">
@@ -492,7 +614,16 @@ export default function CoursesPage() {
                         }`}
                       >
                         {/* Course Image/Gradient */}
-                        <div className={`w-full h-full ${course.image}`} />
+                        {/* <div className={`w-full h-full ${course.thumbnail}`} /> */}
+                               {course.image?.startsWith("http") ? (
+                            <img
+                              src={course.image}
+                              alt={course.title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className={`w-full h-full ${course.image}`} />
+                          )}
 
                         {/* Featured Badge */}
                         {course.featured && (
@@ -549,53 +680,7 @@ export default function CoursesPage() {
                         </CardHeader>
 
                         <CardContent className="space-y-4 flex-1 flex flex-col">
-                          {/* Instructor Information */}
-                          <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-                            <Avatar className="w-10 h-10">
-                              <AvatarImage
-                                src={course.instructor.avatar}
-                                alt={course.instructor.name}
-                              />
-                              <AvatarFallback>
-                                <User className="h-5 w-5" />
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm truncate">
-                                {course.instructor.name}
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {course.instructor.title}
-                              </p>
-                              <p className="text-xs text-primary font-medium">
-                                <Calendar className="inline h-3 w-3 mr-1" />
-                                {course.instructor.experience} experience
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Course Stats */}
-                          <div className="grid grid-cols-3 gap-4 text-sm">
-                            <div className="flex items-center gap-1 text-muted-foreground">
-                              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                              <span className="font-medium">
-                                {course.rating.toFixed(1)}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1 text-muted-foreground">
-                              <Users className="h-4 w-4" />
-                              <span className="font-medium">
-                                {course.students.toLocaleString()}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1 text-muted-foreground">
-                              <Clock className="h-4 w-4" />
-                              <span className="font-medium">
-                                {course.duration}
-                              </span>
-                            </div>
-                          </div>
-
+                        
                           {/* Course Details */}
                           <div className="flex items-center justify-between text-sm text-muted-foreground">
                             <span>{course.lessons} lessons</span>

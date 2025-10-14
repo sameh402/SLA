@@ -448,9 +448,9 @@ export default function CourseDetails() {
                         ))}
                       </div>
                       <span className="font-medium">{course.rating.toFixed(1)}</span>
-                      <span className="text-muted-foreground">
+                      {/* <span className="text-muted-foreground">
                         ({course.reviewCount.toLocaleString()} reviews)
-                      </span>
+                      </span> */}
                     </div>
                     
                     <div className="flex items-center gap-2 text-muted-foreground">
@@ -463,10 +463,10 @@ export default function CourseDetails() {
                       <span>{course.duration}</span>
                     </div>
                     
-                    <div className="flex items-center gap-2 text-muted-foreground">
+                    {/* <div className="flex items-center gap-2 text-muted-foreground">
                       <Calendar className="h-5 w-5" />
                       <span>Updated {course.lastUpdated}</span>
-                    </div>
+                    </div> */}
                   </div>
                 </AnimatedSection>
               </div>
@@ -780,7 +780,7 @@ export default function CourseDetails() {
               <div className="lg:col-span-1">
                 <div className="space-y-6">
                   {/* Related Courses */}
-                  <AnimatedSection animation="fade-up" delay={600}>
+                  {/* <AnimatedSection animation="fade-up" delay={600}>
                     <Card>
                       <CardHeader>
                         <CardTitle>Related Courses</CardTitle>
@@ -806,7 +806,7 @@ export default function CourseDetails() {
                         </div>
                       </CardContent>
                     </Card>
-                  </AnimatedSection>
+                  </AnimatedSection> */}
                 </div>
               </div>
             </div>

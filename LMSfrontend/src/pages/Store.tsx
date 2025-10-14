@@ -1,5 +1,5 @@
-
-import { useState, useEffect } from "react";
+import { User } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,7 @@ import {
   CheckCircle,
   TrendingUp,
   Zap,
-  Lock
+  Lock,
 } from "lucide-react";
 
 interface Course {
@@ -61,7 +61,7 @@ export default function Store() {
   const { t, language } = useI18n();
   const { isEnrolledInCourse } = useEnrollments();
   const { courses, loading: coursesLoading, error: coursesError } = useCourses();
-  const [selectedCategory, setSelectedCategory] = useState("All Courses");
+  // const [selectedCategory, setSelectedCategory] = useState("All Courses");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("popularity");
   const [wishlist, setWishlist] = useState<Set<string>>(new Set());
@@ -72,6 +72,8 @@ export default function Store() {
   const [isEgyptUser, setIsEgyptUser] = useState<boolean | null>(null);
    const [exchangeRate, setExchangeRate] = useState<number | null>(null);
    const [loading, setLoading] = useState(true);
+   const [selectedCategory, setSelectedCategory] = useState("All");
+
 
    // 1️⃣ Detect user's country
    useEffect(() => {
@@ -125,35 +127,37 @@ export default function Store() {
  
 
 
+  
+  // 🧭 Define categories
+const categories = ["All", "General", "Programming", "Data Science", "AI/ML", "Design", "Business", "Marketing"];
 
 
-  // Dynamic categories based on language
-  const categories = [
-    t("store.allCourses"),
-    t("store.languages"),
-    t("store.development"),
-    t("store.design"),
-    t("store.healthcare"),
-    t("store.business"),
-    t("store.math"),
-  ];
 
-  const filteredCourses = courses.filter(course => {
-    const matchesCategory = selectedCategory === "All Courses" || 
-      (selectedCategory === "Languages" && course.category === "Languages") ||
-      (selectedCategory === "Development" && course.category === "Development") ||
-      (selectedCategory === "Design" && course.category === "Design") ||
-      (selectedCategory === "Healthcare" && course.category === "Healthcare") ||
-      (selectedCategory === "Business" && course.category === "Business") ||
-      (selectedCategory === "Math" && course.category === "Math");
-      
-    const matchesSearch = !searchQuery || 
+  // const filteredCourses = courses.filter(course => {
+  //   const matchesCategory = selectedCategory === "All Courses" || 
+  //     (selectedCategory === "Languages" && course.category === "Languages") ||
+  //     (selectedCategory === "Development" && course.category === "Development") ||
+  //     (selectedCategory === "Design" && course.category === "Design") ||
+  //     (selectedCategory === "Healthcare" && course.category === "Healthcare") ||
+  //     (selectedCategory === "Business" && course.category === "Business") ||
+  //     (selectedCategory === "Math" && course.category === "Math");
+
+// 🧠 Filter logic
+const filteredCourses = useMemo(() => {
+  return courses.filter((course) => {
+    const matchesCategory =
+      selectedCategory === "All" ||
+      course.category?.toLowerCase() === selectedCategory.toLowerCase();
+
+    const matchesSearch =
+      !searchQuery ||
       course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      course.instructor.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      course.instructor?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       course.category.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     return matchesCategory && matchesSearch;
   });
+}, [courses, selectedCategory, searchQuery]);
 
   const toggleWishlist = (courseId: string) => {
     setWishlist(prev => {
@@ -223,40 +227,6 @@ export default function Store() {
           </div>
         </div>
 
-        {/* Stats */}
-        {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 text-center">
-              <BookOpen className="w-8 h-8 text-primary mx-auto mb-2" />
-              <p className="text-2xl font-bold text-foreground">150+</p>
-              <p className="text-sm text-muted-foreground">{t("store.coursesAvailable")}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 text-center">
-              <Users className="w-8 h-8 text-success mx-auto mb-2" />
-              <p className="text-2xl font-bold text-foreground">50k+</p>
-              <p className="text-sm text-muted-foreground">{t("store.happyStudents")}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 text-center">
-              <Award className="w-8 h-8 text-warning mx-auto mb-2" />
-              <p className="text-2xl font-bold text-foreground">98%</p>
-              <p className="text-sm text-muted-foreground">{t("store.completionRate")}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="p-4 text-center">
-              <Star className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-foreground">4.8</p>
-              <p className="text-sm text-muted-foreground">{t("store.averageRating")}</p>
-            </CardContent>
-          </Card>
-        </div> */}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Filters Sidebar */}
@@ -278,7 +248,7 @@ export default function Store() {
             </Card>
 
             {/* Categories */}
-            <Card className="bg-card border-border">
+            {/* <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="text-lg text-foreground">{t("store.categories")}</CardTitle>
               </CardHeader>
@@ -294,7 +264,26 @@ export default function Store() {
                   </Button>
                 ))}
               </CardContent>
-            </Card>
+            </Card> */}
+            {/* Categories */}
+<Card className="bg-card border-border">
+  <CardHeader>
+    <CardTitle className="text-lg text-foreground">Categories</CardTitle>
+  </CardHeader>
+  <CardContent className="space-y-2">
+    {categories.map((category) => (
+      <Button
+        key={category}
+        variant={selectedCategory === category ? "default" : "ghost"}
+        onClick={() => setSelectedCategory(category)}
+        className="w-full justify-start text-sm"
+      >
+        {category}
+      </Button>
+    ))}
+  </CardContent>
+</Card>
+
           </div>
 
           {/* Course Grid */}
@@ -429,7 +418,7 @@ export default function Store() {
                         
                         <h3
                           className="font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors cursor-pointer"
-                          onClick={() => openCourseModal(course)}
+                          // onClick={() => openCourseModal(course)}
                         >
                           {course.title}
                         </h3>
@@ -440,20 +429,27 @@ export default function Store() {
                       </div>
 
                       {/* Instructor */}
-                      <div className="flex items-center space-x-2">
+                      {/* <div className="flex items-center space-x-2">
                         <img
                           src={course.instructorAvatar}
                           alt={course.instructor}
                           className="w-6 h-6 rounded-full object-cover"
                         />
                         <span className="text-sm text-muted-foreground">{course.instructor}</span>
-                      </div>
+                      </div> */}
+                                      <div className="flex items-center space-x-2">
+                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                    <User className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <span className="text-sm text-muted-foreground">{course.instructor}</span>
+                </div>
+
 
                       {/* Course Stats */}
                       <div className="flex items-center space-x-4 text-xs text-muted-foreground">
                         <div className="flex items-center space-x-1">
                           <Clock className="w-3 h-3" />
-                          <span>{course.duration}</span>
+                          <span>{course.duration} </span>
                         </div>
                         <div className="flex items-center space-x-1">
                           <Play className="w-3 h-3" />
