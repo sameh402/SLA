@@ -59,8 +59,6 @@ class CourseSerializer(serializers.ModelSerializer):
     videos_count = serializers.SerializerMethodField()
     media = CourseMediaSerializer(many=True, read_only=True)
 
-    
-
     class Meta:
         model = Course
         fields = [

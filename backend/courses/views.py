@@ -1,127 +1,4 @@
-# from django.shortcuts import render, get_object_or_404
-# from rest_framework import viewsets, permissions, filters, status
-# from rest_framework.decorators import api_view, permission_classes
-# from rest_framework.response import Response
-# from django_filters.rest_framework import DjangoFilterBackend
-# from .models import Course, CourseMedia
-# from .serializers import CourseSerializer, CourseMediaSerializer
-# from .permissions import IsInstructorOrAdmin
-# from rest_framework.views import APIView
 
-# class CourseMediaDeleteView(APIView):
-#     permission_classes = [IsInstructorOrAdmin]
-#     def delete(self, request, course_id, media_id):
-#         try:
-#             # Ensure the media belongs to this course
-#             media = CourseMedia.objects.get(id=media_id, course_id=course_id)
-#             media.delete()
-#             return Response({"message": "Media deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
-#         except CourseMedia.DoesNotExist:
-#             return Response({"error": "Media not found"}, status=status.HTTP_404_NOT_FOUND)
-
-# # Create your views here.
-
-# class CourseViewSet(viewsets.ModelViewSet):
-# 	serializer_class = CourseSerializer
-# 	queryset = Course.objects.all()
-# 	permission_classes = [IsInstructorOrAdmin]
-# 	filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-# 	filterset_fields = ['status', 'created_by']
-# 	search_fields = ['title', 'description']
-# 	ordering_fields = ['created_at', 'price']
-
-# 	def get_permissions(self):
-# 		if self.action in ['list', 'retrieve']:
-# 			return [permissions.AllowAny()]
-# 		return super().get_permissions()
-
-# 	def get_queryset(self):
-# 		qs = super().get_queryset()
-# 		user = self.request.user
-# 		if self.action == 'list':
-# 			# Instructors see only their courses; admins see all; public sees published
-# 			if user and user.is_authenticated:
-# 				if getattr(user, 'role', None) == 'instructor':
-# 					return qs.filter(created_by=user)
-# 				if getattr(user, 'role', None) == 'admin':
-# 					return qs
-# 			return qs.filter(status=Course.Status.PUBLISHED)
-# 		if self.action == 'retrieve':
-# 			# Public can retrieve published; instructors/admins can retrieve any
-# 			return qs
-# 		return qs
-
-
-# class CourseMediaViewSet(viewsets.ModelViewSet):
-# 	serializer_class = CourseMediaSerializer
-# 	queryset = CourseMedia.objects.all()
-# 	permission_classes = [IsInstructorOrAdmin]
-# 	filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-# 	filterset_fields = ['course', 'media_type']
-# 	ordering_fields = ['order', 'created_at']
-
-# 	def get_permissions(self):
-# 		# Read: any authenticated user, filtered by enrollment; Write: instructor/admin
-# 		if self.action in ['list', 'retrieve']:
-# 			return [permissions.IsAuthenticated()]
-# 		return [IsInstructorOrAdmin()]
-
-# 	def get_queryset(self):
-# 		qs = CourseMedia.objects.all()
-# 		user = self.request.user
-# 		if not user or not user.is_authenticated:
-# 			return CourseMedia.objects.none()
-# 		# Admin sees all
-# 		if getattr(user, 'role', None) == 'admin':
-# 			return qs
-# 		# Instructor sees only media for their courses
-# 		if getattr(user, 'role', None) == 'instructor':
-# 			return qs.filter(course__created_by=user)
-# 		# Students: only media for courses they are enrolled in
-# 		return qs.filter(course__enrollments__user=user)
-
-
-# @api_view(['POST'])
-# @permission_classes([IsInstructorOrAdmin])
-# def add_course_media(request, course_id):
-#     """
-#     Add media to a specific course
-#     """
-#     try:
-#         # Get the course
-#         course = get_object_or_404(Course, id=course_id)
-        
-#         # Check permissions
-#         user = request.user
-#         if getattr(user, 'role', None) != 'admin' and course.created_by != user:
-#             return Response({"detail": "You do not have permission to add media to this course"}, 
-#                            status=status.HTTP_403_FORBIDDEN)
-        
-#         # Print request data for debugging
-#         print(f"Request data: {request.data}")
-#         print(f"Request FILES: {request.FILES}")
-        
-#         # Create a mutable copy of the data
-#         data = request.data.copy()
-        
-#         # Ensure course ID is set correctly (from URL parameter)
-#         data['course'] = course_id
-        
-#         # Create a new serializer with course already set
-#         serializer = CourseMediaSerializer(data=data)
-#         if serializer.is_valid():
-#             # Save with explicit course assignment
-#             serializer.save(course=course)
-#             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        
-#         # Print validation errors for debugging
-#         print(f"Validation errors: {serializer.errors}")
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-#     except Exception as e:
-#         print(f"Error in add_course_media: {str(e)}")
-#         return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
     
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, permissions, status, filters
@@ -132,6 +9,9 @@ from rest_framework.views import APIView
 from .models import Course, CourseMedia
 from .serializers import CourseSerializer, CourseMediaSerializer
 from .permissions import IsInstructorOrAdmin
+from rest_framework.permissions import IsAuthenticated
+from enrollments.models import Enrollment
+
 
 
 # ✅ COURSE CRUD
@@ -220,3 +100,62 @@ class CourseMediaDeleteView(APIView):
             return Response({"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN)
         media.delete()
         return Response({"message": "Media deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+
+
+# New Course Detail Endpoint for Authenticated Users
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def user_course_detail(request, course_id):
+    try:
+        course = Course.objects.prefetch_related("media").get(id=course_id)
+    except Course.DoesNotExist:
+        return Response({"detail": "Course not found"}, status=status.HTTP_404_NOT_FOUND)
+    is_enrolled = Enrollment.objects.filter(
+        user=request.user, course=course, status="active"
+    ).exists()
+    serializer = CourseSerializer(course, context={"request": request})
+    course_data = serializer.data
+    students_count = Enrollment.objects.filter(course=course, status__in=["active", "completed"]).count() 
+    instructors = course.instructors if isinstance(course.instructors, list) else []
+    next_course = (
+        Course.objects.filter(category=course.category)
+        .exclude(id=course.id)
+        .first()
+    )
+    if not next_course:
+        # fallback: pick any random course
+        next_course = Course.objects.exclude(id=course.id).order_by("?").first()
+
+    next_course_data = None
+    if next_course:
+        next_course_data = {
+            "id": next_course.id,
+            "title": next_course.title,
+            "thumbnail": request.build_absolute_uri(next_course.thumbnail.url)
+            if next_course.thumbnail
+            else None,
+            "price": float(next_course.price),
+            "category": next_course.category,
+        }
+
+    # ✅ Combine everything for frontend
+    response_data = {
+        "id": course.id,
+        "title": course.title,
+        "description": course.description,
+        "thumbnail": request.build_absolute_uri(course.thumbnail.url) if course.thumbnail else None,
+        "price": float(course.price),
+        "category": course.category if hasattr(course, "category") else "General",
+        "status": course.status,
+        "duration": course.duration,
+        "instructors": instructors,
+        "media": course_data.get("media", []),
+        "is_enrolled": is_enrolled,
+        "user": request.user.username,
+        "rating": 4.6,  
+        "students_count": students_count,
+        "next_recommended_course": next_course_data,
+    }
+
+    return Response(response_data, status=status.HTTP_200_OK)

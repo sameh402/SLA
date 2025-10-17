@@ -594,10 +594,10 @@ const categories = ["All", ...backendCategories.map(c => c.name)];
               }`}
               itemClassName="group"
               delay={100}
-            >
+            > 
               {sortedCourses.map((course) => (
                 <div key={course.id}>
-                  <Link
+                 <Link
                     to={`/course/${course.id}`}
                     className="block h-full"
                   >

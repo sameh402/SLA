@@ -1,5 +1,6 @@
 import { User } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,10 +57,10 @@ interface Course {
 }
 
 
-
 export default function Store() {
   const { t, language } = useI18n();
   const { isEnrolledInCourse } = useEnrollments();
+  // const { courses, loading: coursesLoading, error: coursesError } = useCourses();
   const { courses, loading: coursesLoading, error: coursesError } = useCourses();
   // const [selectedCategory, setSelectedCategory] = useState("All Courses");
   const [searchQuery, setSearchQuery] = useState("");
@@ -73,6 +74,7 @@ export default function Store() {
    const [exchangeRate, setExchangeRate] = useState<number | null>(null);
    const [loading, setLoading] = useState(true);
    const [selectedCategory, setSelectedCategory] = useState("All");
+   const navigate = useNavigate();
 
 
    // 1️⃣ Detect user's country
@@ -416,12 +418,18 @@ const filteredCourses = useMemo(() => {
                           </div>
                         </div>
                         
-                        <h3
+                        {/* <h3
                           className="font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors cursor-pointer"
                           // onClick={() => openCourseModal(course)}
                         >
                           {course.title}
-                        </h3>
+                        </h3> */}
+                        <h3
+        className="font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors cursor-pointer"
+        onClick={() => navigate(`/user-course/${course.id}`)}
+      >
+        {course.title}
+      </h3>
                         
                         <p className="text-sm text-muted-foreground line-clamp-2 mt-2">
                           {course.description}

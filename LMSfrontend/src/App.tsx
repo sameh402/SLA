@@ -23,6 +23,7 @@ import ScrollToTop from "./components/ScrollToTop";
 
 import Rewards from "./pages/Rewards";
 import Store from "./pages/Store";
+import CourseDetail from "./pages/CourseDetail";
 import StudentDashboard from "./pages/studetDashboard";
 import EditProfile from "./pages/EditProfile";
 import Learning from "./pages/Learning";
@@ -85,6 +86,13 @@ export default function App() {
                     <ProtectedRoute>
                       <RoleBasedRoute allowedRoles={['student', 'instructor']}>
                         <StudentDashboard />
+                      </RoleBasedRoute>
+                    </ProtectedRoute>
+                  } />
+                   <Route path="/user-course/:id" element={
+                    <ProtectedRoute>
+                      <RoleBasedRoute allowedRoles={['student', 'instructor']}>
+                        <CourseDetail />
                       </RoleBasedRoute>
                     </ProtectedRoute>
                   } />

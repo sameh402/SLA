@@ -95,6 +95,7 @@ const fetchCourseMedia = async (courseId: number) => {
     duration: "",
     status: "draft" as Course['status'],
     thumbnail: "/placeholder.svg",
+    thumbnailFile: null as File | null, // 🆕 add this
     videos: [] as VideoContent[]
   });
 
@@ -105,14 +106,7 @@ const fetchCourseMedia = async (courseId: number) => {
     videos: [] as VideoContent[]
   });
 
-  // const filteredCourses = courses.filter(course => {
-  //   const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-  //                        course.instructors.some(i => i.toLowerCase().includes(searchTerm.toLowerCase()));
-  //   const matchesStatus = statusFilter === "all" || course.status === statusFilter;
-  //   const matchesCategory = categoryFilter === "all" || course.category === categoryFilter;
-    
-  //   return matchesSearch && matchesStatus && matchesCategory;
-  // });
+
 const filteredCourses = courses.filter((course) => {
   const matchesSearch =
     course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -131,20 +125,7 @@ const filteredCourses = courses.filter((course) => {
   return matchesSearch && matchesStatus && matchesCategory;
 });
 
-  
-  // const addContentVideo = (e?: React.MouseEvent) => {
-  //   e?.preventDefault();
-  //   e?.stopPropagation();
-  //   const newVideo: VideoContent = {
-  //     id: Date.now(),
-  //     title: "",
-  //     description: "",
-  //     url: "",
-  //     duration: "",
-  //     order: contentFormData.videos.length + 1
-  //   };
-  //   setContentFormData({ ...contentFormData, videos: [...contentFormData.videos, newVideo] });
-  // };
+ 
   const addContentVideo = (e?: React.MouseEvent) => {
   e?.preventDefault();
   e?.stopPropagation();
@@ -163,24 +144,6 @@ const filteredCourses = courses.filter((course) => {
     videos: [...prev.videos, newVideo],
   }));
 };
-
-
-//   const removeContentVideo = async (videoId: number, e?: React.MouseEvent) => {
-//   e?.preventDefault();
-//   e?.stopPropagation();
-
-//   try {
-// await adminDeleteCourseMedia(parseInt(selectedCourseForContent.id, 10), videoId);
-//     console.log(`✅ Video ${videoId} deleted successfully from server.`);
-
-//     setContentFormData((prev) => ({
-//       ...prev,
-//       videos: prev.videos.filter((video) => video.id !== videoId),
-//     }));
-//   } catch (error) {
-//     console.error("❌ Failed to delete video:", error);
-//   }
-// };
 
 const removeContentVideo = async (videoId: number, e?: React.MouseEvent) => {
   e?.preventDefault();
@@ -230,6 +193,10 @@ const removeContentVideo = async (videoId: number, e?: React.MouseEvent) => {
 
       const payload = new FormData();
       payload.append("title", formData.title);
+     if (formData.thumbnailFile) {
+  // only send if user selected a new file
+  payload.append("thumbnail", formData.thumbnailFile);
+}
       payload.append("description", formData.description);
       payload.append("status", statusMap[formData.status] ?? formData.status ?? "draft");
       payload.append('instructors', JSON.stringify(formData.instructors.filter(i => i.trim() !== '')));
@@ -367,28 +334,18 @@ const removeContentVideo = async (videoId: number, e?: React.MouseEvent) => {
       duration: course.duration,
       status: course.status,
       thumbnail: course.thumbnail,
+      thumbnailFile: null,  
       videos: course.videos
     });
     setIsEditDialogOpen(true);
   };
 
-  // const openEditContentDialog = (course: Course) => {
-  //   setSelectedCourseForContent(course);
-  //   // Fetch latest media for this course
 
-  //   setContentFormData({
-  //     title: course.title,
-  //     description: course.description,
-  //     videos: [...course.videos]
-  //   });
-  //   setIsEditContentDialogOpen(true);
-  // };
   const openEditContentDialog = async (course: Course) => {
   setSelectedCourseForContent(course);
 
   // Fetch latest media for this course
   const videos = await fetchCourseMedia(parseInt(course.id, 10));
-  console.log('videossssssssssssssssssss', videos)
 
   setContentFormData({
     title: course.title,
@@ -410,65 +367,11 @@ const removeContentVideo = async (videoId: number, e?: React.MouseEvent) => {
       duration: "",
       status: "draft",
       thumbnail: "/placeholder.svg",
+      thumbnailFile: null,
       videos: []
     });
   };
 
-// useEffect(() => {
-//     async function loadCourses() {
-//       const res = await adminListCourses();
-//       const djangoCourses = res?.data?.results ?? [];
-//       // const mappedCourses = djangoCourses.map((c: any) => ({
-//       //   id: c.id.toString(),
-//       //   title: c.title,
-//       //   description: c.description,
-//       //   instructors: ["Admin"], 
-//       //   category: c.category || "Uncategorized",
-//       //   price: parseFloat(c.price),
-//       //   duration: c.duration || "—",
-//       //   status: c.status === "published" ? "active" : "draft",
-//       //   thumbnail: c.thumbnail || "/placeholder.svg",
-//       //   videos: (c.media || []).map((m: any, idx: number) => ({
-//       //     id: m.id,
-//       //     title: m.title,
-//       //     description: "",
-//       //     url: m.file,
-//       //     duration: m.duration || "",
-//       //     order: idx + 1,
-//       //   })),
-//       //   students: 0,
-//       //   rating: 0,
-//       //   progress: 0,
-//       // }));
-//       const mappedCourses = djangoCourses.map((c: any) => ({
-//   id: c.id.toString(),
-//   title: c.title,
-//   description: c.description,
-//   instructors: c.instructors && c.instructors.length ? c.instructors : ["Admin"], // ✅ fix instructors
-//   category: c.category || "Uncategorized", // ✅ fix category
-//   price: parseFloat(c.price),
-//   duration: c.duration || "—", // ✅ fix duration
-//   status: c.status === "published" ? "active" : "draft",
-//   thumbnail: c.thumbnail || "/placeholder.svg",
-//   videos: (c.media || []).map((m: any, idx: number) => ({
-//     id: m.id,
-//     title: m.title,
-//     description: m.description || "",
-//     url: m.file,
-//     duration: m.duration || "",
-//     order: m.order || idx + 1,
-//   })),
-//   students: 0,
-//   rating: 0,
-//   progress: 0,
-// }));
-
-
-//       setCourses(mappedCourses);
-//     }
-
-//     loadCourses();
-// }, []);
 useEffect(() => {
   async function loadCourses() {
     try {
@@ -606,22 +509,7 @@ useEffect(() => {
                           }
                         }
           
-                        // Add the course to local state with uploaded videos
-                        // const courseWithVideos: Course = {
-                        //   id: createdCourse.id,
-                        //   title: createdCourse.title,
-                        //   description: createdCourse.description,
-                        //   instructors: ["Admin"],
-                        //   students: 0,
-                        //   rating: 0,
-                        //   status: createdCourse.status,
-                        //   progress: 0,
-                        //   videos: uploadedVideos,
-                        //   category: createdCourse.category,
-                        //   price: Number(createdCourse.price || 0),
-                        //   duration: createdCourse.duration,
-                        //   thumbnail: createdCourse.thumbnail,
-                        // };
+                        
                           const courseWithVideos: Course = {
                           id: String(createdCourse.id),
                           title: createdCourse.title || newCourse.title,
@@ -850,31 +738,53 @@ useEffect(() => {
           </DialogHeader>
           <div className="space-y-4">
             {/* Course Image Upload */}
-            <div className="space-y-4">
-              <Label className="text-base font-medium">Course Cover Image</Label>
-              <div className="flex items-center space-x-4">
-                <div className="w-32 h-20 border border-border rounded-lg overflow-hidden bg-muted">
-                  <img 
-                    src={formData.thumbnail} 
-                    alt="Course cover" 
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    Change Image
-                  </Button>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Recommended size: 1920x1080px
-                  </p>
-                </div>
-              </div>
-            </div>
+              <div className="space-y-4">
+                <Label className="text-base font-medium">Course Cover Image</Label>
+                <div className="flex items-center space-x-4">
+                  <div className="w-32 h-20 border border-border rounded-lg overflow-hidden bg-muted">
+                    <img 
+                      src={formData.thumbnail} 
+                      alt="Course cover" 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    {/* Hidden file input */}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      ref={fileInputRef}
+                      className="hidden"
+
+                        onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                        const imageUrl = URL.createObjectURL(file);
+                        setFormData((prev) => ({
+                        ...prev,
+                        thumbnail: imageUrl,     // preview
+                        thumbnailFile: file,     // actual upload
+                        }));
+                        }
+                        }}
+                        />
+
+                        <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        >
+                        <Upload className="w-4 h-4 mr-2" />
+                        Change Image
+                        </Button>
+
+                        <p className="text-xs text-muted-foreground mt-1">
+                        Recommended size: 1920x1080px
+                        </p>
+                        </div>
+                        </div>
+                        </div>
+
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

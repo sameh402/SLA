@@ -10,7 +10,7 @@ class Payment(models.Model):
 		FAILED = 'failed', 'Failed'
 
 	user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='payments')
-	course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='payments')
+	course = models.ForeignKey(Course, on_delete=models.CASCADE , related_name='payments')
 	amount = models.DecimalField(max_digits=10, decimal_places=2)
 	currency = models.CharField(max_length=10, default='USD')
 	payment_status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
