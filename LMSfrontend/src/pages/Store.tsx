@@ -131,8 +131,9 @@ export default function Store() {
 
   
   // 🧭 Define categories
-const categories = ["All", "General", "Programming", "Data Science", "AI/ML", "Design", "Business", "Marketing"];
+// const categories = ["All", "General", "Programming", "Data Science", "AI/ML", "Design", "Business", "Marketing"];
 
+const categories = ["General", "Programming","Language","Graphic","Medical"];
 
 
   // const filteredCourses = courses.filter(course => {

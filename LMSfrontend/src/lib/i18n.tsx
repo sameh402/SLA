@@ -20,6 +20,7 @@ const I18nContext = createContext<I18nContextType | undefined>(undefined);
 
 const translations = {
   en: {
+    // course_detail
     
     // Navigation
     "nav.home": "Home",

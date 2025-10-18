@@ -191,7 +191,7 @@ export default function CourseDetail() {
     closePayment();
     toast({
       title: language === "ar" ? "تم التسجيل بنجاح!" : "Enrollment Successful!",
-      description: `${tLocal("enrolled")} ${transformedCourse.title}`,
+      description: `${t("courseDetails.enrolled")} ${transformedCourse.title}`,
     });
   };
 
@@ -279,7 +279,7 @@ export default function CourseDetail() {
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Clock className="h-5 w-5" />
-                      <span>{transformedCourse.duration} {t("courseDetails.duration")}</span>
+                      <span>{transformedCourse.duration}</span>
                     </div>
                   </div>
                   <Card className="sticky top-8 bg-card/80 backdrop-blur-sm border-2 shadow-xl">

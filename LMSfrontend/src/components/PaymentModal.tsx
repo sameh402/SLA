@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -126,7 +124,7 @@ export default function PaymentModal({
                 <div className="flex-1">
                   <h3 className="font-semibold text-sm line-clamp-2">{course.title}</h3>
                   <p className="text-xs text-muted-foreground">
-                    {language === "ar" ? "بواسطة" : "by"} {course.instructor}
+                    {course.instructor }
                   </p>
                   <div className="flex items-center gap-2 mt-1">
                     <div className="flex items-center gap-1">

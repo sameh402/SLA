@@ -47,7 +47,7 @@ const initialCourses: Course[] = coursesWithContent.map(c => ({
 }));
 
 
-const categories = ["General", "Programming", "Data Science", "AI/ML", "Design", "Business", "Marketing"];
+const categories = ["General", "Programming","Language","Graphic","Medical"];
 
 export default function Courses() {
   const navigate = useNavigate();
@@ -885,7 +885,7 @@ useEffect(() => {
                 <SelectContent>
                   <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="archived">Archived</SelectItem>
+                  {/* <SelectItem value="archived">Archived</SelectItem> */}
                 </SelectContent>
               </Select>
             </div>

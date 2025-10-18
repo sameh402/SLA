@@ -106,7 +106,9 @@ interface Student {
   recommendationSent?: boolean;
 }
 
-const categories = ["Programming", "Data Science", "AI/ML", "Design", "Business", "Marketing"];
+// const categories = ["Programming", "Data Science", "AI/ML", "Design", "Business", "Marketing"];
+const categories = ["General", "Programming","Language","Graphic","Medical"];
+
 
 // Sample comprehensive student data
 const studentsData: Student[] = [

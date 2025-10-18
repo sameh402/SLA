@@ -51,8 +51,8 @@ export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const parallaxOffset = useParallax(0.3);
   const isEgyptUser = useStore((state) => state.isEgyptUser);
-  const { categories, loading: coursesLoading, error: coursesError, getTotalCourseCount, getTotalStudentCount } = useCourses();
-  
+  const { categories, loading: coursesLoading, error: coursesError } = useCourses();
+
   // Fetch Django courses for the courses section
   const { data: djangoCoursesData, isLoading: djangoCoursesLoading, error: djangoCoursesError } = useDjangoCourses({
     status: 'published',
@@ -161,11 +161,11 @@ const heroSlides = [
   const displayCategories = courseCategories.length > 0 ? courseCategories : firebaseCourseCategories;
 
   // Dynamic stats - use Django course count if available, otherwise Firebase
-  const totalCourses = djangoCoursesData?.count || getTotalCourseCount();
+  const totalCourses = djangoCoursesData?.count ;
   const stats = [
     { 
       label: t("home.stats.students"), 
-      value: `${(getTotalStudentCount() / 1000).toFixed(0)}k+`, 
+      value: `$5k+`, 
       icon: Users 
     },
     { 
@@ -362,7 +362,7 @@ const heroSlides = [
             {            [
               {
                 icon: Users,
-                value: Math.floor(getTotalStudentCount() / 1000),
+                value: 12,
                 suffix: "k+",
                 label: t("home.stats.students"),
               },
