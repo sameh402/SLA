@@ -472,13 +472,20 @@ export default function CourseDetail() {
           </div>
         </section>
       </div>
-
+{/* 
       <PaymentModal
         course={course}
         isOpen={isPaymentModalOpen}
         onClose={closePayment}
         onSuccess={handlePaymentSuccess}
-      />
+      /> */}
+      <PaymentModal
+  course={transformedCourse ?? course}
+  isOpen={isPaymentModalOpen}
+  onClose={closePayment}
+  onSuccess={handlePaymentSuccess}
+/>
+
     </StudentLayout>
   );
 }

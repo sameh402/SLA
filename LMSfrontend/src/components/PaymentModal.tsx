@@ -40,6 +40,23 @@ export default function PaymentModal({
   const [displayPrice, setDisplayPrice] = useState<number>(0);
   const [savings, setSavings] = useState<number>(0);
 
+
+  const courseImage =
+  course?.image ||
+  course?.thumbnail ||
+  course?.cover ||
+  course?.media?.[0]?.file ||
+  "";
+
+const instructorName =
+  typeof course?.instructor === "string"
+    ? course.instructor
+    : course?.instructor?.name ||
+      course?.instructors?.[0]?.name ||
+      course?.created_by ||
+      "";
+
+
   // Fetch USD → EGP rate
   useEffect(() => {
     const fetchRate = async () => {
@@ -120,11 +137,17 @@ export default function PaymentModal({
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex gap-4">
-                <img src={course.image} alt={course.title} className="w-20 h-16 object-cover rounded-lg" />
+                {/* <img src={course.image} alt={course.title} className="w-20 h-16 object-cover rounded-lg" /> */}
+                <img
+  src={courseImage}
+  alt={course?.title}
+  className="w-20 h-16 object-cover rounded-lg"
+/>
+
                 <div className="flex-1">
                   <h3 className="font-semibold text-sm line-clamp-2">{course.title}</h3>
                   <p className="text-xs text-muted-foreground">
-                    {course.instructor }
+                     {instructorName}
                   </p>
                   <div className="flex items-center gap-2 mt-1">
                     <div className="flex items-center gap-1">
