@@ -89,11 +89,21 @@ CORS_ALLOWED_ORIGINS = config(
     cast=lambda v: [s.strip() for s in v.split(',')]
 )
 
-CSRF_TRUSTED_ORIGINS = config(
-    'CSRF_TRUSTED_ORIGINS',
-    default='http://localhost:3000',
-    cast=lambda v: [s.strip() for s in v.split(',')]
-)
+# Allow all Vercel subdomains for the user's project
+if os.environ.get('VERCEL'):
+    CORS_ALLOW_ALL_ORIGINS = True # Temporarily allow all for "guaranteed" fix
+    CSRF_TRUSTED_ORIGINS = [
+        'https://*.vercel.app',
+        'https://sla-delta-hazel.vercel.app'
+    ]
+else:
+    CSRF_TRUSTED_ORIGINS = config(
+        'CSRF_TRUSTED_ORIGINS',
+        default='http://localhost:3000',
+        cast=lambda v: [s.strip() for s in v.split(',')]
+    )
+
+# CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_CREDENTIALS = True
 
