@@ -1,1 +1,1 @@
-web: gunicorn backend.wsgi:application --log-file -
+web: python manage.py migrate --noinput --settings=backend.settings_production && gunicorn backend.wsgi:application --log-file -
