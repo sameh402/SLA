@@ -173,5 +173,13 @@ EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 
 # Payment URLs
-BACKEND_URL = 'https://sla-delta-hazel.vercel.app'
-FRONTEND_URL = 'https://sla-frontend-c9l2re09t-sameh402s-projects.vercel.app' # From your screenshot
+# Use environment variables if set, otherwise fallback to known production URLs
+BACKEND_URL = config('BACKEND_URL', default='https://sla-delta-hazel.vercel.app')
+FRONTEND_URL = config('FRONTEND_URL', default='https://sla-frontend.vercel.app')
+
+# If the user is on a specific Vercel deployment, we might need to adjust this,
+# but using the main production URL is generally safer for callbacks.
+if not FRONTEND_URL.startswith('http'):
+    FRONTEND_URL = f"https://{FRONTEND_URL}"
+if not BACKEND_URL.startswith('http'):
+    BACKEND_URL = f"https://{BACKEND_URL}"
