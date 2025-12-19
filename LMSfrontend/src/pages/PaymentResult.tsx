@@ -1,23 +1,42 @@
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { CheckCircle, XCircle, Home, ArrowLeft } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import { CheckCircle, XCircle, Home, ArrowLeft, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useI18n } from "@/lib/i18n";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function PaymentResult() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { language } = useI18n();
-  const [counter, setCounter] = useState(10);
+  const [counter, setCounter] = useState(15);
+  const [isReady, setIsReady] = useState(false);
 
-  const status = (searchParams.get("status") || "").toLowerCase();
-  const courseId = searchParams.get("courseId");
+  // Store values in refs to keep them after URL cleanup
+  const statusRef = useRef((searchParams.get("status") || "").toLowerCase());
+  const courseIdRef = useRef(searchParams.get("courseId"));
+
+  const status = statusRef.current;
+  const courseId = courseIdRef.current;
   const isSuccess = status === "success" || status === "paid";
 
   useEffect(() => {
+    // 🧹 Clean URL: Remove parameters from address bar after reading them
+    if (window.location.search) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    setIsReady(true);
+
     const interval = setInterval(() => {
-      setCounter((prev) => prev - 1);
+      setCounter((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
 
     const timeout = setTimeout(() => {
@@ -26,7 +45,7 @@ export default function PaymentResult() {
       } else {
         navigate("/courses");
       }
-    }, 10000);
+    }, 15000);
 
     return () => {
       clearInterval(interval);
@@ -46,94 +65,133 @@ export default function PaymentResult() {
     }
   };
 
+  if (!isReady) return null;
+
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
-      <Card
-        className={`max-w-lg w-full shadow-2xl transform transition-all duration-500 ${isSuccess
-            ? "border-green-300 bg-gradient-to-br from-green-50 to-white"
-            : "border-red-300 bg-gradient-to-br from-red-50 to-white"
-          }`}
-      >
-        <CardContent className="p-8">
-          <div className="flex flex-col items-center space-y-6">
-            {/* Icon */}
-            <div
-              className={`rounded-full p-6 ${isSuccess ? "bg-green-100" : "bg-red-100"
-                }`}
-            >
-              {isSuccess ? (
-                <CheckCircle className="w-20 h-20 text-green-500 animate-bounce" />
-              ) : (
-                <XCircle className="w-20 h-20 text-red-500 animate-pulse" />
-              )}
-            </div>
+    <div className="flex justify-center items-center min-h-screen bg-[#0a0a0a] p-4 overflow-hidden relative">
+      {/* Dynamic Background Elements */}
+      <div className={`absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full blur-[120px] opacity-20 ${isSuccess ? 'bg-green-500' : 'bg-red-500'}`} />
+      <div className={`absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full blur-[120px] opacity-20 ${isSuccess ? 'bg-emerald-500' : 'bg-rose-500'}`} />
 
-            {/* Title */}
-            <h2
-              className={`text-3xl font-bold text-center ${isSuccess ? "text-green-700" : "text-red-700"
-                }`}
-            >
-              {isSuccess
-                ? language === "ar"
-                  ? "تم الدفع بنجاح!"
-                  : "Payment Successful!"
-                : language === "ar"
-                  ? "فشل الدفع"
-                  : "Payment Failed"}
-            </h2>
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="w-full max-w-lg z-10"
+        >
+          <Card className="border-none bg-white/5 backdrop-blur-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden">
+            <CardContent className="p-0">
+              {/* Top Banner */}
+              <div className={`h-2 w-full ${isSuccess ? 'bg-green-500' : 'bg-red-500'}`} />
 
-            {/* Description */}
-            <p className="text-center text-gray-600 text-lg">
-              {isSuccess
-                ? language === "ar"
-                  ? "تم إتمام الدفع بنجاح وتم تسجيلك في الدورة."
-                  : "Your payment has been completed successfully and you are now enrolled in the course."
-                : language === "ar"
-                  ? "حدثت مشكلة أثناء معالجة الدفع. يرجى المحاولة مرة أخرى."
-                  : "There was an issue processing your payment. Please try again."}
-            </p>
+              <div className="p-8 sm:p-12 flex flex-col items-center space-y-8">
+                {/* Animated Icon Container */}
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 15 }}
+                  className={`rounded-full p-8 relative ${isSuccess ? 'bg-green-500/10' : 'bg-red-500/10'}`}
+                >
+                  {isSuccess ? (
+                    <CheckCircle className="w-24 h-24 text-green-500" />
+                  ) : (
+                    <XCircle className="w-24 h-24 text-red-500" />
+                  )}
 
-            {/* Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 w-full mt-6">
-              <Button
-                onClick={handleDashboard}
-                className={`flex-1 h-12 text-base font-semibold ${isSuccess
-                    ? "bg-green-600 hover:bg-green-700"
-                    : "bg-gray-600 hover:bg-gray-700"
-                  }`}
-              >
-                <Home className="w-5 h-5 mr-2" />
-                {language === "ar" ? "لوحة التحكم" : "Dashboard"}
-              </Button>
+                  {/* Pulse Effect */}
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className={`absolute inset-0 rounded-full ${isSuccess ? 'bg-green-500/20' : 'bg-red-500/20'}`}
+                  />
+                </motion.div>
 
-              <Button
-                onClick={handleReturnToCourse}
-                variant="outline"
-                className={`flex-1 h-12 text-base font-semibold ${isSuccess
-                    ? "border-green-600 text-green-600 hover:bg-green-50"
-                    : "border-red-600 text-red-600 hover:bg-red-50"
-                  }`}
-              >
-                <ArrowLeft className="w-5 h-5 mr-2" />
-                {isSuccess
-                  ? language === "ar"
-                    ? "الذهاب إلى الدورة"
-                    : "Go to Course"
-                  : language === "ar"
-                    ? "العودة إلى الدورة"
-                    : "Return to Course"}
-              </Button>
-            </div>
+                {/* Text Content */}
+                <div className="text-center space-y-3">
+                  <motion.h2
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className={`text-4xl font-black tracking-tight ${isSuccess ? 'text-white' : 'text-white'}`}
+                  >
+                    {isSuccess
+                      ? language === "ar" ? "تم الدفع بنجاح!" : "Payment Successful!"
+                      : language === "ar" ? "فشل الدفع" : "Payment Failed"}
+                  </motion.h2>
 
-            {/* Auto-redirect message */}
-            <p className="mt-4 text-sm text-gray-500 text-center">
-              {language === "ar"
-                ? `سيتم التوجيه تلقائياً خلال ${counter} ثانية...`
-                : `Auto-redirecting in ${counter} second${counter > 1 ? "s" : ""}...`}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="text-gray-400 text-lg leading-relaxed max-w-xs mx-auto"
+                  >
+                    {isSuccess
+                      ? language === "ar"
+                        ? "تم إتمام الدفع بنجاح وتم تسجيلك في الدورة."
+                        : "Your payment has been completed successfully and you are now enrolled."
+                      : language === "ar"
+                        ? "حدثت مشكلة أثناء معالجة الدفع. يرجى المحاولة مرة أخرى."
+                        : "There was an issue processing your payment. Please try again."}
+                  </motion.p>
+                </div>
+
+                {/* Action Buttons */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="flex flex-col sm:flex-row gap-4 w-full"
+                >
+                  <Button
+                    onClick={handleDashboard}
+                    className={`flex-1 h-14 text-lg font-bold rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] ${isSuccess
+                        ? "bg-green-600 hover:bg-green-500 text-white shadow-[0_10px_20px_rgba(22,163,74,0.3)]"
+                        : "bg-white/10 hover:bg-white/20 text-white backdrop-blur-md"
+                      }`}
+                  >
+                    <Home className="w-6 h-6 mr-2" />
+                    {language === "ar" ? "لوحة التحكم" : "Dashboard"}
+                  </Button>
+
+                  <Button
+                    onClick={handleReturnToCourse}
+                    variant="outline"
+                    className={`flex-1 h-14 text-lg font-bold rounded-2xl border-2 transition-all hover:scale-[1.02] active:scale-[0.98] ${isSuccess
+                        ? "border-green-600/50 text-green-500 hover:bg-green-500/10"
+                        : "border-red-600/50 text-red-500 hover:bg-red-500/10 shadow-[0_10px_20px_rgba(220,38,38,0.2)]"
+                      }`}
+                  >
+                    {isSuccess ? (
+                      <ArrowLeft className="w-6 h-6 mr-2" />
+                    ) : (
+                      <RefreshCw className="w-6 h-6 mr-2 animate-spin-slow" />
+                    )}
+                    {isSuccess
+                      ? language === "ar" ? "الذهاب إلى الدورة" : "Go to Course"
+                      : language === "ar" ? "المحاولة مرة أخرى" : "Try Again"}
+                  </Button>
+                </motion.div>
+
+                {/* Footer Info */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.6 }}
+                  className="pt-4 flex items-center space-x-2 text-gray-500"
+                >
+                  <div className="w-2 h-2 rounded-full bg-gray-600 animate-pulse" />
+                  <p className="text-sm font-medium">
+                    {language === "ar"
+                      ? `سيتم التوجيه تلقائياً خلال ${counter} ثانية...`
+                      : `Auto-redirecting in ${counter} seconds...`}
+                  </p>
+                </motion.div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
