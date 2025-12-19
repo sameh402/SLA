@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-	baseURL: (typeof window !== "undefined" ? (window as any).ENV?.NEXT_PUBLIC_API_BASE : undefined) || import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000",
+	baseURL: (typeof window !== "undefined" ? (window as any).ENV?.NEXT_PUBLIC_API_BASE : undefined) || import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000",
 	withCredentials: false,
 });
 
