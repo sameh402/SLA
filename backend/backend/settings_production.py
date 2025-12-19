@@ -171,3 +171,7 @@ EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+
+# Payment URLs
+BACKEND_URL = 'https://sla-delta-hazel.vercel.app'
+FRONTEND_URL = 'https://sla-frontend-c9l2re09t-sameh402s-projects.vercel.app' # From your screenshot
