@@ -31,3 +31,14 @@ def change_password(request):
 		user.save()
 		return Response({'message': 'Password changed successfully'}, status=status.HTTP_200_OK)
 	return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def check_username(request):
+    username = request.query_params.get('username', None)
+    if not username:
+        return Response({'error': 'Username parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    exists = User.objects.filter(username__iexact=username).exists()
+    return Response({'available': not exists})

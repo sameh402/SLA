@@ -1,1 +1,0 @@
-web: python manage.py migrate --noinput --settings=backend.settings_production && python create_admin.py && gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --log-file -

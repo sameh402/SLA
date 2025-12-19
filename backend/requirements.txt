@@ -17,3 +17,4 @@ dj-database-url==2.1.0
 python-multipart==0.0.9
 django-extensions==3.2.3
 requests==2.32.3
+setuptools
