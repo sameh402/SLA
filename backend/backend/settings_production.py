@@ -17,8 +17,8 @@ SECRET_KEY = config('SECRET_KEY', default=SECRET_KEY)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*', cast=lambda v: [s.strip() for s in v.split(',')])
 
 # Database Configuration
-# Support Vercel's Neon integration (POSTGRES_URL) and standard DATABASE_URL
-db_url = os.environ.get('POSTGRES_URL') or os.environ.get('DATABASE_URL')
+# Support Vercel's Neon integration (POSTGRES_URL or STORAGE_URL) and standard DATABASE_URL
+db_url = os.environ.get('POSTGRES_URL') or os.environ.get('STORAGE_URL') or os.environ.get('DATABASE_URL')
 
 if db_url:
     DATABASES = {
@@ -35,13 +35,25 @@ if db_url:
     
     print(f"DEBUG: Database configured using DATABASE_URL")
 else:
-    print("DEBUG: CRITICAL! No DATABASE_URL found.")
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+    # On Vercel, we MUST have a database URL. SQLite will crash.
+    if os.environ.get('VERCEL'):
+        print("DEBUG: CRITICAL! No database URL found on Vercel. This will cause a crash.")
+        # We still set a dummy config to avoid Django startup errors, 
+        # but the app will fail on the first DB access.
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': '/tmp/db.sqlite3', # Use /tmp on Vercel if we MUST use SQLite
+            }
         }
-    }
+    else:
+        print("DEBUG: No DATABASE_URL found. Falling back to local SQLite.")
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
@@ -86,12 +98,13 @@ CSRF_TRUSTED_ORIGINS = config(
 CORS_ALLOW_CREDENTIALS = True
 
 # Cache configuration
-# Fallback to LocMemCache if REDIS_URL is not provided
-if config('REDIS_URL', default=None):
+# Fallback to LocMemCache if REDIS_URL is not provided or is the default local one
+redis_url = config('REDIS_URL', default=None)
+if redis_url and not redis_url.startswith('redis://redis:'):
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-            'LOCATION': config('REDIS_URL'),
+            'LOCATION': redis_url,
         }
     }
 else:
@@ -102,8 +115,8 @@ else:
     }
 
 # Session configuration
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-SESSION_CACHE_ALIAS = 'default'
+# Use database-backed sessions for reliability on Vercel (serverless)
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
 # Logging configuration - Optimized for Render/Railway (Console output)
 LOGGING = {
