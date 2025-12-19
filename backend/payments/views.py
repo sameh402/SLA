@@ -201,5 +201,12 @@ def tap_callback(request):
     except Payment.DoesNotExist:
         print(f"⚠️ Payment with transaction_id={tap_id} not found")
 
-    # ✅ redirect to frontend domain dynamically
-    return redirect(f"{settings.FRONTEND_URL}/payment-result?status={payment_status}")
+    # ✅ redirect to frontend domain dynamically with course ID
+    course_id = ""
+    try:
+        if payment:
+            course_id = f"&courseId={payment.course.id}"
+    except:
+        pass
+    
+    return redirect(f"{settings.FRONTEND_URL}/payment-result?status={payment_status}{course_id}")

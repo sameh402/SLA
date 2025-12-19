@@ -1,84 +1,139 @@
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { toast } from "react-toastify";
-import { CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, XCircle, Home, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { useI18n } from "@/lib/i18n";
 
 export default function PaymentResult() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [counter, setCounter] = useState(5);
+  const { language } = useI18n();
+  const [counter, setCounter] = useState(10);
+
   const status = (searchParams.get("status") || "").toLowerCase();
+  const courseId = searchParams.get("courseId");
+  const isSuccess = status === "success" || status === "paid";
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCounter((prev) => prev - 1);
+    }, 1000);
 
-useEffect(() => {
-  if (status === "success" || status === "paid") {
-    toast.success("✅ Payment successful! Course enrolled.");
-  } else {
-    toast.error("❌ Payment failed. Try again.");
-  }
+    const timeout = setTimeout(() => {
+      if (isSuccess) {
+        navigate("/dashboard");
+      } else {
+        navigate("/courses");
+      }
+    }, 10000);
 
-  const interval = setInterval(() => {
-    setCounter((prev) => prev - 1);
-  }, 1000);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [isSuccess, navigate]);
 
-  const timeout = setTimeout(() => {
-    navigate("/Store");
-  }, 5000);
-
-  return () => {
-    clearInterval(interval);
-    clearTimeout(timeout);
+  const handleDashboard = () => {
+    navigate("/dashboard");
   };
-}, [status, navigate]);
 
-  const isSuccess = status === "success";
+  const handleReturnToCourse = () => {
+    if (courseId) {
+      navigate(`/courses/${courseId}`);
+    } else {
+      navigate("/courses");
+    }
+  };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-50 p-4">
-      <div
-        className={`max-w-md w-full p-6 rounded-xl shadow-lg transform transition-all duration-500 ${
-          isSuccess ? "bg-green-50 border border-green-300" : "bg-red-50 border border-red-300"
-        }`}
+    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+      <Card
+        className={`max-w-lg w-full shadow-2xl transform transition-all duration-500 ${isSuccess
+            ? "border-green-300 bg-gradient-to-br from-green-50 to-white"
+            : "border-red-300 bg-gradient-to-br from-red-50 to-white"
+          }`}
       >
-        <div className="flex flex-col items-center space-y-4">
-          <div
-            className={`rounded-full p-4 ${isSuccess ? "bg-green-100" : "bg-red-100"}`}
-          >
-            {isSuccess ? (
-              <CheckCircle className="w-16 h-16 text-green-500 animate-bounce" />
-            ) : (
-              <XCircle className="w-16 h-16 text-red-500 animate-pulse" />
-            )}
-          </div>
-
-          <h2 className={`text-2xl font-bold ${isSuccess ? "text-green-700" : "text-red-700"}`}>
-            {isSuccess ? "Payment Successful!" : "Payment Failed"}
-          </h2>
-
-          <p className="text-center text-gray-600">
-            {isSuccess
-              ? "Your payment has been completed and you are now enrolled in the course."
-              : "There was an issue processing your payment. Please try again."}
-          </p>
-
-          <div className="mt-4">
-            <button
-              onClick={() => navigate("/Store")}
-              className={`px-6 py-2 rounded-lg font-semibold transition-colors duration-300 ${
-                isSuccess
-                  ? "bg-green-500 hover:bg-green-600 text-white"
-                  : "bg-red-500 hover:bg-red-600 text-white"
-              }`}
+        <CardContent className="p-8">
+          <div className="flex flex-col items-center space-y-6">
+            {/* Icon */}
+            <div
+              className={`rounded-full p-6 ${isSuccess ? "bg-green-100" : "bg-red-100"
+                }`}
             >
-              {isSuccess ? "Go to My Courses" : "Try Again"}
-            </button>
-          </div>
+              {isSuccess ? (
+                <CheckCircle className="w-20 h-20 text-green-500 animate-bounce" />
+              ) : (
+                <XCircle className="w-20 h-20 text-red-500 animate-pulse" />
+              )}
+            </div>
 
-          <p className="mt-2 text-xs text-gray-400">
-            Redirecting in {counter} second{counter > 1 ? "s" : ""}...
-          </p>
-        </div>
-      </div>
+            {/* Title */}
+            <h2
+              className={`text-3xl font-bold text-center ${isSuccess ? "text-green-700" : "text-red-700"
+                }`}
+            >
+              {isSuccess
+                ? language === "ar"
+                  ? "تم الدفع بنجاح!"
+                  : "Payment Successful!"
+                : language === "ar"
+                  ? "فشل الدفع"
+                  : "Payment Failed"}
+            </h2>
+
+            {/* Description */}
+            <p className="text-center text-gray-600 text-lg">
+              {isSuccess
+                ? language === "ar"
+                  ? "تم إتمام الدفع بنجاح وتم تسجيلك في الدورة."
+                  : "Your payment has been completed successfully and you are now enrolled in the course."
+                : language === "ar"
+                  ? "حدثت مشكلة أثناء معالجة الدفع. يرجى المحاولة مرة أخرى."
+                  : "There was an issue processing your payment. Please try again."}
+            </p>
+
+            {/* Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 w-full mt-6">
+              <Button
+                onClick={handleDashboard}
+                className={`flex-1 h-12 text-base font-semibold ${isSuccess
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-gray-600 hover:bg-gray-700"
+                  }`}
+              >
+                <Home className="w-5 h-5 mr-2" />
+                {language === "ar" ? "لوحة التحكم" : "Dashboard"}
+              </Button>
+
+              <Button
+                onClick={handleReturnToCourse}
+                variant="outline"
+                className={`flex-1 h-12 text-base font-semibold ${isSuccess
+                    ? "border-green-600 text-green-600 hover:bg-green-50"
+                    : "border-red-600 text-red-600 hover:bg-red-50"
+                  }`}
+              >
+                <ArrowLeft className="w-5 h-5 mr-2" />
+                {isSuccess
+                  ? language === "ar"
+                    ? "الذهاب إلى الدورة"
+                    : "Go to Course"
+                  : language === "ar"
+                    ? "العودة إلى الدورة"
+                    : "Return to Course"}
+              </Button>
+            </div>
+
+            {/* Auto-redirect message */}
+            <p className="mt-4 text-sm text-gray-500 text-center">
+              {language === "ar"
+                ? `سيتم التوجيه تلقائياً خلال ${counter} ثانية...`
+                : `Auto-redirecting in ${counter} second${counter > 1 ? "s" : ""}...`}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
