@@ -45,6 +45,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
+        # Use email as username if username is not provided
+        if not validated_data.get('username'):
+            validated_data['username'] = validated_data.get('email')
+            
         password = validated_data.pop('password')
         user = User(**validated_data)
         user.set_password(password)

@@ -91,10 +91,23 @@ CORS_ALLOWED_ORIGINS = config(
 
 # Allow all Vercel subdomains for the user's project
 if os.environ.get('VERCEL'):
-    CORS_ALLOW_ALL_ORIGINS = True # Temporarily allow all for "guaranteed" fix
+    CORS_ALLOW_ALL_ORIGINS = True
+    CORS_ALLOW_CREDENTIALS = True
     CSRF_TRUSTED_ORIGINS = [
         'https://*.vercel.app',
         'https://sla-delta-hazel.vercel.app'
+    ]
+    # Explicitly allow common headers
+    CORS_ALLOW_HEADERS = [
+        "accept",
+        "accept-encoding",
+        "authorization",
+        "content-type",
+        "dnt",
+        "origin",
+        "user-agent",
+        "x-csrftoken",
+        "x-requested-with",
     ]
 else:
     CSRF_TRUSTED_ORIGINS = config(
