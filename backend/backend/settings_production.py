@@ -8,23 +8,40 @@ from decouple import config
 from .settings import *
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=False, cast=bool)
+# Forcing DEBUG=True temporarily to see the actual error page in the browser
+DEBUG = True
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY', default=SECRET_KEY)
 
-# Allowed hosts
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*', cast=lambda v: [s.strip() for s in v.split(',')])
 
-# Database
-# Use DATABASE_URL environment variable (standard for Render/Railway)
-DATABASES = {
-    'default': dj_database_url.config(
-        default=config('DATABASE_URL', default='sqlite:///db.sqlite3'),
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
-}
+# Database Configuration
+# Support Vercel's Neon integration (POSTGRES_URL) and standard DATABASE_URL
+db_url = os.environ.get('POSTGRES_URL') or os.environ.get('DATABASE_URL')
+
+if db_url:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=db_url,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    }
+    # Force SSL for external providers
+    if DATABASES['default'].get('ENGINE') == 'django.db.backends.postgresql':
+        DATABASES['default'].setdefault('OPTIONS', {})
+        DATABASES['default']['OPTIONS']['sslmode'] = 'require'
+    
+    print(f"DEBUG: Database configured using DATABASE_URL")
+else:
+    print("DEBUG: CRITICAL! No DATABASE_URL found.")
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
