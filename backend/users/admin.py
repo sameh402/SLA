@@ -8,4 +8,4 @@ class UserAdmin(DjangoUserAdmin):
     fieldsets = DjangoUserAdmin.fieldsets + (
         ('Profile Info', {'fields': ('role', 'avatar', 'bio', 'country', 'phone', 'address', 'age')}),
     )
-    list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'country', 'phone', 'age', 'is_staff')
+    list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'country', 'phone', 'age', 'is_staff', 'password')

@@ -1,6 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { BookOpen, ShoppingBag } from "lucide-react";
+import { BookOpen, ShoppingBag, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import ProfileDropdown from "./ProfileDropdown";
@@ -23,33 +23,18 @@ export default function Layout({ children }: LayoutProps) {
   const [isCustomerServiceOpen, setIsCustomerServiceOpen] = useState(false);
   const { t, language, direction } = useI18n();
 
-  // grab logout (and optionally user/loading) from your auth hook
-  const { logout, user, loading } = useAuth() as {
-    logout?: () => Promise<void>;
-    user?: any;
-    loading?: boolean;
-  };
+  // grab logout (and optionally user, loading) from your auth hook
+  const { logout, user, loading } = useAuth();
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     try {
-      if (typeof logout === "function") {
-        await logout();
-      } else {
-        // fallback cleanup if logout isn't provided (shouldn't normally run)
-        console.warn("useAuth() does not expose logout() — verify your hook implementation.");
-        try {
-          localStorage.removeItem("defaultUser");
-          localStorage.removeItem("isLoggedIn");
-        } catch (e) {
-          /* ignore */
-        }
-      }
-
+      logout();
       // Redirect to login after logout
       navigate("/LogIn");
     } catch (err) {
       console.error("Failed to logout:", err);
-      // Show a toast/notification here if you have one
+      // Fallback redirect
+      navigate("/LogIn");
     }
   };
 
@@ -63,11 +48,16 @@ export default function Layout({ children }: LayoutProps) {
       label: t("nav.dashboard"),
       icon: BookOpen,
     },
-    
+
     {
       href: "/Store",
       label: t("nav.store"),
       icon: ShoppingBag,
+    },
+    {
+      href: "/student-dashboard?tab=tickets",
+      label: t("nav.tickets"),
+      icon: MessageSquare,
     },
   ];
 
@@ -91,7 +81,9 @@ export default function Layout({ children }: LayoutProps) {
               <nav className="hidden md:flex space-x-1">
                 {navItems.map((item) => {
                   const Icon = item.icon;
-                  const isActive = currentPath === item.href;
+                  const isActive = item.href.includes("?")
+                    ? (location.pathname + location.search) === item.href
+                    : (location.pathname === item.href && !location.search);
 
                   return (
                     <Link key={item.href} to={item.href}>
@@ -130,7 +122,9 @@ export default function Layout({ children }: LayoutProps) {
             <nav className="flex space-x-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = currentPath === item.href;
+                const isActive = item.href.includes("?")
+                  ? (location.pathname + location.search) === item.href
+                  : (location.pathname === item.href && !location.search);
 
                 return (
                   <Link key={item.href} to={item.href} className="flex-1">

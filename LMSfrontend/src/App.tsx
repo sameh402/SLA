@@ -41,6 +41,7 @@ import Students from "./pages/newDashboardPages/Students";
 import CoursePage from "./pages/newDashboardPages/course/[id]";
 import Settings from "./pages/newDashboardPages/Settings";
 import Finance from "./pages/newDashboardPages/Finance";
+import Tickets from "./pages/newDashboardPages/Tickets";
 
 // Route protection components
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -72,7 +73,7 @@ export default function App() {
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/privacy" element={<Privacy />} />
                   <Route path="/terms" element={<Terms />} />
-                  
+
                   {/* Protected Routes - require authentication */}
                   <Route path="/dashboard" element={
                     <ProtectedRoute>
@@ -81,7 +82,7 @@ export default function App() {
                       </RoleBasedRoute>
                     </ProtectedRoute>
                   } />
-                  
+
                   <Route path="/student-dashboard" element={
                     <ProtectedRoute>
                       <RoleBasedRoute allowedRoles={['student', 'instructor']}>
@@ -89,7 +90,7 @@ export default function App() {
                       </RoleBasedRoute>
                     </ProtectedRoute>
                   } />
-                   <Route path="/user-course/:id" element={
+                  <Route path="/user-course/:id" element={
                     <ProtectedRoute>
                       <RoleBasedRoute allowedRoles={['student', 'instructor']}>
                         <CourseDetail />
@@ -105,7 +106,7 @@ export default function App() {
                       </RoleBasedRoute>
                     </ProtectedRoute>
                   } />
-                  
+
                   <Route path="/admin/users/:id" element={
                     <ProtectedRoute>
                       <RoleBasedRoute allowedRoles={['admin']}>
@@ -113,7 +114,7 @@ export default function App() {
                       </RoleBasedRoute>
                     </ProtectedRoute>
                   } />
-                  
+
                   <Route path="/admin/courses" element={
                     <ProtectedRoute>
                       <RoleBasedRoute allowedRoles={['admin']}>
@@ -121,7 +122,7 @@ export default function App() {
                       </RoleBasedRoute>
                     </ProtectedRoute>
                   } />
-                  
+
                   <Route path="/admin/courses/:id" element={
                     <ProtectedRoute>
                       <RoleBasedRoute allowedRoles={['admin']}>
@@ -129,7 +130,7 @@ export default function App() {
                       </RoleBasedRoute>
                     </ProtectedRoute>
                   } />
-                  
+
                   <Route path="/admin/courses-test" element={
                     <ProtectedRoute>
                       <RoleBasedRoute allowedRoles={['admin']}>
@@ -137,7 +138,7 @@ export default function App() {
                       </RoleBasedRoute>
                     </ProtectedRoute>
                   } />
-                  
+
                   <Route path="/admin/Finance" element={
                     <ProtectedRoute>
                       <RoleBasedRoute allowedRoles={['admin']}>
@@ -145,7 +146,7 @@ export default function App() {
                       </RoleBasedRoute>
                     </ProtectedRoute>
                   } />
-                  
+
                   <Route path="/admin/settings" element={
                     <ProtectedRoute>
                       <RoleBasedRoute allowedRoles={['admin']}>
@@ -153,7 +154,15 @@ export default function App() {
                       </RoleBasedRoute>
                     </ProtectedRoute>
                   } />
-                                             {/* payment result */}
+
+                  <Route path="/admin/tickets" element={
+                    <ProtectedRoute>
+                      <RoleBasedRoute allowedRoles={['admin']}>
+                        <AdminLayout><Tickets /></AdminLayout>
+                      </RoleBasedRoute>
+                    </ProtectedRoute>
+                  } />
+                  {/* payment result */}
                   <Route path="/payment-result" element={<PaymentResult />} />
 
 
@@ -163,19 +172,19 @@ export default function App() {
                       <EditProfile />
                     </ProtectedRoute>
                   } />
-                  
+
                   <Route path="/Store" element={
                     <ProtectedRoute>
                       <Store />
                     </ProtectedRoute>
                   } />
-                  
+
                   <Route path="/learn/:courseId" element={
                     <ProtectedRoute>
                       <Learning />
                     </ProtectedRoute>
                   } />
-                  
+
                   {/* Catch-all */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>

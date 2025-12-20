@@ -22,17 +22,39 @@ export function LoginPage() {
 	const { toast } = useToast();
 	const setIsLogIn = useStore((s) => s.setIsLogIn);
 	const { login } = useAuth();
+	const [errors, setErrors] = useState({ email: "", password: "" });
+
+	const validateEmail = (val: string) => {
+		if (!val) return language === "ar" ? "البريد الإلكتروني مطلوب" : "Email is required";
+		if (!/\S+@\S+\.\S+/.test(val)) return language === "ar" ? "بريد إلكتروني غير صالح" : "Invalid email format";
+		return "";
+	};
+
+	const validatePassword = (val: string) => {
+		if (!val) return language === "ar" ? "كلمة المرور مطلوبة" : "Password is required";
+		return "";
+	};
+
+	const handleEmailChange = (val: string) => {
+		setEmail(val);
+		setErrors(prev => ({ ...prev, email: validateEmail(val) }));
+	};
+
+	const handlePasswordChange = (val: string) => {
+		setPassword(val);
+		setErrors(prev => ({ ...prev, password: validatePassword(val) }));
+	};
 
 	async function handleLogin(e: React.FormEvent) {
 		e.preventDefault();
-		if (!email || !password) {
-			toast({
-				title: t("login.error"),
-				description: language === "ar" ? "يرجى إدخال البريد الإلكتروني وكلمة المرور" : "Please enter email and password",
-				variant: "destructive",
-			});
+		const emailErr = validateEmail(email);
+		const passErr = validatePassword(password);
+
+		if (emailErr || passErr) {
+			setErrors({ email: emailErr, password: passErr });
 			return;
 		}
+
 		setIsSubmitting(true);
 		try {
 			// Use the auth context login function
@@ -86,8 +108,16 @@ export function LoginPage() {
 								</Label>
 								<div className="relative">
 									<Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-									<Input id="email" type="email" placeholder={language === "ar" ? "student@example.com" : "student@example.com"} className="pl-10 border-border bg-background text-foreground placeholder:text-muted-foreground" value={email} onChange={(e) => setEmail(e.target.value)} />
+									<Input
+										id="email"
+										type="email"
+										placeholder={language === "ar" ? "student@example.com" : "student@example.com"}
+										className={`pl-10 border-border bg-background text-foreground placeholder:text-muted-foreground ${errors.email ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+										value={email}
+										onChange={(e) => handleEmailChange(e.target.value)}
+									/>
 								</div>
+								{errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
 							</div>
 							<div className="space-y-2">
 								<Label htmlFor="password" className="text-foreground">
@@ -99,9 +129,9 @@ export function LoginPage() {
 										id="password"
 										type={showPassword ? "text" : "password"}
 										placeholder="••••••••"
-										className="pl-10 pr-10 border-border bg-background text-foreground placeholder:text-muted-foreground"
+										className={`pl-10 pr-10 border-border bg-background text-foreground placeholder:text-muted-foreground ${errors.password ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
 										value={password}
-										onChange={(e) => setPassword(e.target.value)}
+										onChange={(e) => handlePasswordChange(e.target.value)}
 									/>
 									<button
 										type="button"
@@ -115,6 +145,7 @@ export function LoginPage() {
 										)}
 									</button>
 								</div>
+								{errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
 							</div>
 							<Button type="submit" className="w-full" disabled={isSubmitting}>
 								{isSubmitting ? (language === "ar" ? "جاري الدخول..." : "Signing in...") : (language === "ar" ? "دخول" : "Sign in")}

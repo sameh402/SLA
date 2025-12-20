@@ -42,31 +42,38 @@ from django.contrib.auth import get_user_model
 def fix_admin(request):
     try:
         User = get_user_model()
-        email = 'drsally@edu.com'
-        password = '1234@sally'
-        username = 'drsally'
+        admins = [
+            {'username': 'drsally', 'email': 'drsally@edu.com', 'password': '1234@sally'},
+            {'username': 'sameh', 'email': 'sameh@edu.com', 'password': '4321@sameh'}
+        ]
         
-        user = User.objects.filter(email=email).first()
-        if not user:
-            user = User.objects.filter(username=username).first()
+        results = []
+        for admin_data in admins:
+            username = admin_data['username']
+            email = admin_data['email']
+            password = admin_data['password']
             
-        if not user:
-            User.objects.create_superuser(username=username, email=email, password=password)
-            return HttpResponse(f"✅ CREATED: {email} / {password}")
-        else:
-            user.email = email
-            user.username = username
-            user.is_staff = True
-            user.is_superuser = True
-            user.is_active = True
-            user.set_password(password)
-            user.save()
-            return HttpResponse(f"✅ UPDATED: {email} / {password}")
+            user = User.objects.filter(username=username).first() or User.objects.filter(email=email).first()
+            if not user:
+                User.objects.create_superuser(username=username, email=email, password=password, role='admin')
+                results.append(f"✅ CREATED: {username}")
+            else:
+                user.email = email
+                user.username = username
+                user.is_staff = True
+                user.is_superuser = True
+                user.is_active = True
+                user.role = 'admin'
+                user.set_password(password)
+                user.save()
+                results.append(f"✅ UPDATED: {username}")
+        
+        return HttpResponse("<br>".join(results))
     except Exception as e:
         return HttpResponse(f"❌ ERROR: {str(e)}")
 
 urlpatterns = [
-	path('admin/', admin.site.urls),
+	path('sla-backend-management-portal-99/', admin.site.urls),
     path('fix-admin/', fix_admin), # TEMP FIX
 	# Health
 	path('api/health/', health_view),
@@ -83,6 +90,8 @@ urlpatterns = [
 	path('api/', include('payments.urls')),
 	# Certificates
 	path('api/', include('certificates.urls')),
+	# Support
+	path('api/support/', include('support.urls')),
 	# Admin
 	path('api/admin/summary', admin_api.summary),
 	path('api/admin/overview', admin_api.overview_metrics),

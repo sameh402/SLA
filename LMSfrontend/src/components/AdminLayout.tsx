@@ -2,18 +2,19 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { 
-  BookOpen, 
-  Users, 
-  LayoutDashboard, 
-  Settings, 
-  Menu, 
+import {
+  BookOpen,
+  Users,
+  LayoutDashboard,
+  Settings,
+  Menu,
   X,
   GraduationCap,
   UserCheck,
   PlusCircle,
   Bell,
-  DollarSign
+  DollarSign,
+  MessageSquare
 } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useAuth } from '@/lib/useAuth';
@@ -29,6 +30,7 @@ const sidebarItems: SidebarItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
   { icon: BookOpen, label: 'Courses', href: '/admin/courses' },
   { icon: Users, label: 'Students', href: '/admin/users' },
+  { icon: MessageSquare, label: 'Tickets', href: '/admin/tickets' },
   { icon: Settings, label: 'Settings', href: '/admin/settings' },
 ];
 
@@ -46,7 +48,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     logout();
     navigate('/LogIn');
   };
-	const { userProfile } = useUserProfile();
+  const { userProfile } = useUserProfile();
 
   // Get current user from localStorage
   const isAdmin = userProfile?.role === 'admin';
@@ -56,7 +58,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     <div className="min-h-screen bg-background">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
@@ -97,8 +99,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   to={item.href}
                   className={cn(
                     "flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors",
-                    isActive 
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" 
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                       : "text-sidebar-foreground hover:bg-sidebar-accent/50"
                   )}
                   onClick={() => setSidebarOpen(false)}
@@ -116,7 +118,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               );
             })}
             {/* Finance link for admin only */}
-            {isAdmin  && (
+            {isAdmin && (
               <Link
                 to="/admin/Finance"
                 className={cn(
@@ -177,7 +179,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 Educational Platform Admin
               </h1>
             </div>
-            
+
             {/* Removed quick add and bell icon */}
           </div>
         </header>

@@ -21,7 +21,7 @@ const I18nContext = createContext<I18nContextType | undefined>(undefined);
 const translations = {
   en: {
     // course_detail
-    
+
     // Navigation
     "nav.home": "Home",
     "nav.courses": "Courses",
@@ -29,6 +29,7 @@ const translations = {
     "nav.contact": "Contact",
     "nav.dashboard": "Dashboard",
     "nav.store": "Store",
+    "nav.tickets": "Support Tickets",
     "nav.academy": "Smart Learning Academy",
 
     // Home Page - Hero Section
@@ -586,12 +587,12 @@ const translations = {
 
     // Admin Navigation
     "admin.nav.main": "Main",
-    "admin.nav.dashboard": "Dashboard", 
+    "admin.nav.dashboard": "Dashboard",
     "admin.nav.overview": "Overview",
     "admin.nav.management": "Management",
     "admin.nav.users": "Users",
     "admin.nav.courses": "Courses",
-    "admin.nav.enrollments": "Enrollments", 
+    "admin.nav.enrollments": "Enrollments",
     "admin.nav.payments": "Payments",
     "admin.nav.system": "System",
     "admin.nav.settings": "Settings",
@@ -601,7 +602,7 @@ const translations = {
     "admin.users.title": "User Management",
     "admin.users.subtitle": "Manage user accounts, roles, and permissions",
     "admin.users.totalUsers": "Total Users",
-    "admin.users.activeUsers": "Active Users", 
+    "admin.users.activeUsers": "Active Users",
     "admin.users.newThisMonth": "New This Month",
     "admin.users.adminUsers": "Admin Users",
     "admin.users.searchPlaceholder": "Search by name, email or username...",
@@ -651,7 +652,7 @@ const translations = {
     "admin.payments.subtitle": "Monitor transactions and manage payment processing",
     "admin.payments.totalRevenue": "Total Revenue",
     "admin.payments.successfulPayments": "Successful Payments",
-    "admin.payments.pendingPayments": "Pending Payments", 
+    "admin.payments.pendingPayments": "Pending Payments",
     "admin.payments.failedPayments": "Failed Payments",
     "admin.payments.searchPlaceholder": "Search by user, course, transaction ID...",
 
@@ -669,7 +670,7 @@ const translations = {
     "admin.overview.courseCompletion": "Course Completion",
     "admin.overview.monthlyRevenue": "Monthly Revenue",
 
-    "admin.settings.title": "Admin Settings", 
+    "admin.settings.title": "Admin Settings",
     "admin.settings.subtitle": "Manage your profile settings and preferences",
     "admin.settings.personalInfo": "Personal Information",
     "admin.settings.security": "Security",
@@ -686,7 +687,7 @@ const translations = {
     "admin.activity.subtitle": "Real-time platform activity and audit trail",
     "admin.activity.allActivities": "All Activities",
     "admin.activity.userActivities": "User Activities",
-    "admin.activity.courseActivities": "Course Activities", 
+    "admin.activity.courseActivities": "Course Activities",
     "admin.activity.paymentActivities": "Payment Activities",
     "admin.activity.searchPlaceholder": "Search activities...",
 
@@ -695,7 +696,7 @@ const translations = {
     "admin.dashboard.subtitle": "Welcome back! Here's what's happening with your platform.",
     "admin.dashboard.totalUsers": "Total Users",
     "admin.dashboard.totalUsersChange": "+12% from last month",
-    "admin.dashboard.activeCourses": "Active Courses", 
+    "admin.dashboard.activeCourses": "Active Courses",
     "admin.dashboard.activeCoursesChange": "+3 new this week",
     "admin.dashboard.totalEnrollments": "Total Enrollments",
     "admin.dashboard.totalEnrollmentsChange": "+8% completion rate",
@@ -719,7 +720,7 @@ const translations = {
     "admin.users.enterEmail": "Enter email",
     "admin.users.enterPassword": "Enter password",
     "admin.users.leaveBlankKeepCurrent": "Leave blank to keep current",
-    "admin.users.activeUser": "Active User", 
+    "admin.users.activeUser": "Active User",
     "admin.users.staffAccess": "Staff Access",
     "admin.users.student": "Student",
     "admin.users.instructor": "Instructor",
@@ -741,7 +742,7 @@ const translations = {
     "admin.courses.addNewCourse": "Add a new course to the platform",
     "admin.courses.courseTitle": "Course Title",
     "admin.courses.enterCourseTitle": "Enter course title",
-    "admin.courses.courseDescription": "Course Description", 
+    "admin.courses.courseDescription": "Course Description",
     "admin.courses.enterDescription": "Enter course description",
     "admin.courses.coursePrice": "Course Price",
     "admin.courses.enterPrice": "Enter price",
@@ -848,7 +849,7 @@ const translations = {
     "admin.activity.adjustFiltersSearch": "Try adjusting your filters or search criteria",
     "admin.activity.today": "Today",
     "admin.activity.7days": "7 Days",
-    "admin.activity.30days": "30 Days", 
+    "admin.activity.30days": "30 Days",
     "admin.activity.allTime": "All Time",
 
     // Admin Overview - Extended
@@ -983,6 +984,7 @@ const translations = {
     "nav.contact": "اتصل بنا",
     "nav.dashboard": "لوحة التحكم",
     "nav.store": "المتجر",
+    "nav.tickets": "تذاكر الدعم",
     "nav.academy": "أكاديمية التعلم الذكي",
 
     // Home Page - Hero Section
@@ -1522,12 +1524,12 @@ const translations = {
 
     // Admin Navigation
     "admin.nav.main": "الرئيسي",
-    "admin.nav.dashboard": "لوحة التحكم", 
+    "admin.nav.dashboard": "لوحة التحكم",
     "admin.nav.overview": "نظرة عامة",
     "admin.nav.management": "الإدارة",
     "admin.nav.users": "المستخدمين",
     "admin.nav.courses": "الدورات",
-    "admin.nav.enrollments": "التسجيلات", 
+    "admin.nav.enrollments": "التسجيلات",
     "admin.nav.payments": "المدفوعات",
     "admin.nav.system": "النظام",
     "admin.nav.settings": "الإعدادات",
@@ -1537,7 +1539,7 @@ const translations = {
     "admin.users.title": "إدارة المستخدمين",
     "admin.users.subtitle": "إدارة حسابات المستخدمين والأدوار والصلاحيات",
     "admin.users.totalUsers": "إجمالي المستخدمين",
-    "admin.users.activeUsers": "المستخدمون النشطون", 
+    "admin.users.activeUsers": "المستخدمون النشطون",
     "admin.users.newThisMonth": "جديد هذا الشهر",
     "admin.users.adminUsers": "مدراء النظام",
     "admin.users.searchPlaceholder": "البحث بالاسم أو البريد الإلكتروني أو اسم المستخدم...",
@@ -1587,7 +1589,7 @@ const translations = {
     "admin.payments.subtitle": "مراقبة المعاملات وإدارة معالجة المدفوعات",
     "admin.payments.totalRevenue": "إجمالي الإيرادات",
     "admin.payments.successfulPayments": "المدفوعات الناجحة",
-    "admin.payments.pendingPayments": "المدفوعات المعلقة", 
+    "admin.payments.pendingPayments": "المدفوعات المعلقة",
     "admin.payments.failedPayments": "المدفوعات الفاشلة",
     "admin.payments.searchPlaceholder": "البحث بالمستخدم أو الدورة أو معرف المعاملة...",
 
@@ -1605,7 +1607,7 @@ const translations = {
     "admin.overview.courseCompletion": "إكمال الدورات",
     "admin.overview.monthlyRevenue": "الإيرادات الشهرية",
 
-    "admin.settings.title": "إعدادات الإدارة", 
+    "admin.settings.title": "إعدادات الإدارة",
     "admin.settings.subtitle": "إدارة إعدادات الملف الشخصي والتفضيلات",
     "admin.settings.personalInfo": "المعلومات الشخصية",
     "admin.settings.security": "الأمان",
@@ -1622,7 +1624,7 @@ const translations = {
     "admin.activity.subtitle": "نشاط المنصة في الوقت الفعلي ومسار التدقيق",
     "admin.activity.allActivities": "جميع الأنشطة",
     "admin.activity.userActivities": "أنشطة المستخدمين",
-    "admin.activity.courseActivities": "أنشطة الدورات", 
+    "admin.activity.courseActivities": "أنشطة الدورات",
     "admin.activity.paymentActivities": "أنشطة المدفوعات",
     "admin.activity.searchPlaceholder": "البحث في الأنشطة...",
 
@@ -1631,7 +1633,7 @@ const translations = {
     "admin.dashboard.subtitle": "مرحباً بعودتك! إليك ما يحدث في منصتك.",
     "admin.dashboard.totalUsers": "إجمالي المستخدمين",
     "admin.dashboard.totalUsersChange": "+12% من الشهر الماضي",
-    "admin.dashboard.activeCourses": "الدورات النشطة", 
+    "admin.dashboard.activeCourses": "الدورات النشطة",
     "admin.dashboard.activeCoursesChange": "+3 جديدة هذا الأسبوع",
     "admin.dashboard.totalEnrollments": "إجمالي التسجيلات",
     "admin.dashboard.totalEnrollmentsChange": "+8% معدل الإكمال",
@@ -1655,7 +1657,7 @@ const translations = {
     "admin.users.enterEmail": "أدخل البريد الإلكتروني",
     "admin.users.enterPassword": "أدخل كلمة المرور",
     "admin.users.leaveBlankKeepCurrent": "اتركه فارغاً للاحتفاظ بالحالي",
-    "admin.users.activeUser": "مستخدم نشط", 
+    "admin.users.activeUser": "مستخدم نشط",
     "admin.users.staffAccess": "صلاحية الموظف",
     "admin.users.student": "طالب",
     "admin.users.instructor": "مدرس",
@@ -1677,7 +1679,7 @@ const translations = {
     "admin.courses.addNewCourse": "إضافة دورة جديدة إلى المنصة",
     "admin.courses.courseTitle": "عنوان الدورة",
     "admin.courses.enterCourseTitle": "أدخل عنوان الدورة",
-    "admin.courses.courseDescription": "وصف الدورة", 
+    "admin.courses.courseDescription": "وصف الدورة",
     "admin.courses.enterDescription": "أدخل وصف الدورة",
     "admin.courses.coursePrice": "سعر الدورة",
     "admin.courses.enterPrice": "أدخل السعر",
@@ -1783,7 +1785,7 @@ const translations = {
     "admin.activity.adjustFiltersSearch": "جرب تعديل المرشحات أو معايير البحث",
     "admin.activity.today": "اليوم",
     "admin.activity.7days": "7 أيام",
-    "admin.activity.30days": "30 يوم", 
+    "admin.activity.30days": "30 يوم",
     "admin.activity.allTime": "كل الوقت",
 
     // Admin Overview - Extended Arabic
@@ -1926,7 +1928,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const t = (key: string): string => {
     return (
       translations[language][
-        key as keyof (typeof translations)[typeof language]
+      key as keyof (typeof translations)[typeof language]
       ] || key
     );
   };

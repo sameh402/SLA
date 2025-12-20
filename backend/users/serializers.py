@@ -40,7 +40,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'username', 'email', 'password',
+            'email', 'password',
             'first_name', 'last_name', 'country', 'phone', 'address', 'age'
         ]
 
@@ -58,6 +58,25 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"password": "Password must contain at least one digit."})
         if not any(char in '!@#$%^&*()_+-=[]{}|;:,.<>?' for char in password):
             raise serializers.ValidationError({"password": "Password must contain at least one special character (!@#$%^&*()_+-=[]{}|;:,.<>?)."})
+        
+        import random
+        import string
+        
+        # Auto-generate username from first and last name
+        base_username = f"{validated_data.get('first_name', '')}_{validated_data.get('last_name', '')}".lower().replace(' ', '_')
+        if not base_username or base_username == '_':
+            base_username = 'user'
+            
+        # Add random suffix to ensure uniqueness
+        suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
+        username = f"{base_username}_{suffix}"
+        
+        # Ensure it doesn't exist (unlikely but safe)
+        while User.objects.filter(username=username).exists():
+            suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
+            username = f"{base_username}_{suffix}"
+            
+        validated_data['username'] = username
         
         user = User(**validated_data)
         user.set_password(password)
@@ -99,13 +118,14 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 class AdminUserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    password_hash = serializers.CharField(source='password', read_only=True)
     courses_enrolled = serializers.SerializerMethodField()  # ✅ add this
 
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name', 'role',
-            'country', 'phone', 'is_active', 'is_staff', 'password', 
+            'country', 'phone', 'is_active', 'is_staff', 'password', 'password_hash',
             'date_joined', 'courses_enrolled',  # ✅ add this
         ]
         read_only_fields = ['id']

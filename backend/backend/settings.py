@@ -50,11 +50,12 @@ INSTALLED_APPS = [
 	'enrollments',
 	'payments',
 	'certificates',
+	'support',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware', # Moved to top
 	'django.middleware.security.SecurityMiddleware',
-	'corsheaders.middleware.CorsMiddleware',
 	'django.contrib.sessions.middleware.SessionMiddleware',
 	'django.middleware.common.CommonMiddleware',
 	'django.middleware.csrf.CsrfViewMiddleware',
@@ -62,6 +63,8 @@ MIDDLEWARE = [
 	'django.contrib.messages.middleware.MessageMiddleware',
 	'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+
 
 ROOT_URLCONF = 'backend.urls'
 
@@ -176,23 +179,28 @@ SPECTACULAR_SETTINGS = {
 SIMPLE_JWT = {
 	'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
 	'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+
 	'ROTATE_REFRESH_TOKENS': False,
 	'BLACKLIST_AFTER_ROTATION': False,
 }
 
-# CORS
 CORS_ALLOWED_ORIGINS = [
 	'http://localhost:3000',
 	'http://127.0.0.1:3000',
 	'http://localhost:8080',
 	'http://127.0.0.1:8080',
 	'http://192.168.1.11:8080',
+    'http://localhost:8081',
+    'http://127.0.0.1:8081',
 ]
 
-# Custom user model (to be implemented in users app)
+# Custom user model
 AUTH_USER_MODEL = 'users.User'
 
-
+AUTHENTICATION_BACKENDS = [
+    'users.backends.EmailOrUsernameModelBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
@@ -204,18 +212,18 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8081",
 ]
 
-CORS_ALLOWED_ORIGINS += [
-    'http://localhost:8081',
-    'http://127.0.0.1:8081',
-]
-
-
+# LOCAL DEV FIXES
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+SECURE_SSL_REDIRECT = False
 
-
-    # Tap Payment Secret Key 
+# Tap Payment Secret Key 
 TAP_API_KEY = "sk_test_RTYqGXHVj51DWLJkyKsxo6in"
 TAP_API_URL = "https://api.tap.company/v2"
 
 FRONTEND_URL = "http://localhost:8080"
 BACKEND_URL = "http://localhost:8000"
+
+print(f"DEBUG: CORS_ALLOW_ALL_ORIGINS = {locals().get('CORS_ALLOW_ALL_ORIGINS', 'Not Set')}")
+
+
