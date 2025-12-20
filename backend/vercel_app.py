@@ -13,20 +13,31 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 email = 'drsally@edu.com'
 password = '1234@sally'
+username = 'drsally'
 
 try:
-    if not User.objects.filter(email=email).exists():
-        User.objects.create_superuser(username='drsally', email=email, password=password)
-        print(f"Admin {email} created successfully.")
+    # Try to find user by email first
+    user = User.objects.filter(email=email).first()
+    if not user:
+        # If not found by email, try by username
+        user = User.objects.filter(username=username).first()
+    
+    if not user:
+        # Create new if doesn't exist at all
+        User.objects.create_superuser(username=username, email=email, password=password)
+        print(f"✅ Admin {email} created successfully.")
     else:
-        user = User.objects.get(email=email)
+        # Update existing user to be the admin we want
+        user.email = email
+        user.username = username
         user.is_staff = True
         user.is_superuser = True
+        user.is_active = True
         user.set_password(password)
         user.save()
-        print(f"Admin {email} updated successfully.")
+        print(f"✅ Admin {email} updated successfully.")
 except Exception as e:
-    print(f"Error ensuring admin exists: {e}")
+    print(f"❌ Error ensuring admin exists: {e}")
 # ------------------------
 
 from backend.wsgi import application
