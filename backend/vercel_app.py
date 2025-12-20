@@ -8,8 +8,17 @@ sys.path.insert(0, os.path.dirname(__file__))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings_production')
 django.setup()
 
-# --- Auto-setup Admin ---
+# --- Run Migrations & Auto-setup Admin ---
+from django.core.management import call_command
 from django.contrib.auth import get_user_model
+
+try:
+    print("🔄 Running database migrations...")
+    call_command('migrate')
+    print("✅ Migrations completed.")
+except Exception as e:
+    print(f"❌ Error running migrations: {e}")
+
 User = get_user_model()
 email = 'drsally@edu.com'
 password = '1234@sally'
