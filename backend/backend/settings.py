@@ -139,9 +139,9 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Hostinger FTP Configuration
-HOSTINGER_FTP_HOST = os.environ.get('HOSTINGER_FTP_HOST', '145.223.86.128')
-HOSTINGER_FTP_USER = os.environ.get('HOSTINGER_FTP_USER', 'u987892666.smartonlinelearningedu.com')
-HOSTINGER_FTP_PASSWORD = os.environ.get('HOSTINGER_FTP_PASSWORD', 'Sameh@123@1999')
+HOSTINGER_FTP_HOST = os.environ.get('HOSTINGER_FTP_HOST')
+HOSTINGER_FTP_USER = os.environ.get('HOSTINGER_FTP_USER')
+HOSTINGER_FTP_PASSWORD = os.environ.get('HOSTINGER_FTP_PASSWORD')
 HOSTINGER_FTP_PORT = int(os.environ.get('HOSTINGER_FTP_PORT', 21))
 HOSTINGER_FTP_ROOT = os.environ.get('HOSTINGER_FTP_ROOT', '/public_html/media/videos/')
 HOSTINGER_BASE_URL = os.environ.get('HOSTINGER_BASE_URL', 'https://smartonlinelearningedu.com/media/videos/')
