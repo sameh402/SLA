@@ -1,53 +1,47 @@
 import os
 import sys
 import django
+from django.core.management import call_command
 
-# Ensure the current directory is in the path so 'backend' package can be found
+# Ensure the current directory is in the path
 sys.path.insert(0, os.path.dirname(__file__))
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings_production')
 django.setup()
 
-# --- Run Migrations & Auto-setup Admin ---
-from django.core.management import call_command
-from django.contrib.auth import get_user_model
-
-try:
-    print("🔄 Running database migrations...")
-    call_command('migrate')
-    print("✅ Migrations completed.")
-except Exception as e:
-    print(f"❌ Error running migrations: {e}")
-
-User = get_user_model()
-email = 'drsally@edu.com'
-password = '1234@sally'
-username = 'drsally'
-
-try:
-    # Try to find user by email first
-    user = User.objects.filter(email=email).first()
-    if not user:
-        # If not found by email, try by username
-        user = User.objects.filter(username=username).first()
-    
-    if not user:
-        # Create new if doesn't exist at all
-        User.objects.create_superuser(username=username, email=email, password=password)
-        print(f"✅ Admin {email} created successfully.")
-    else:
-        # Update existing user to be the admin we want
-        user.email = email
-        user.username = username
-        user.is_staff = True
-        user.is_superuser = True
-        user.is_active = True
-        user.set_password(password)
-        user.save()
-        print(f"✅ Admin {email} updated successfully.")
-except Exception as e:
-    print(f"❌ Error ensuring admin exists: {e}")
-# ------------------------
-
 from backend.wsgi import application
-app = application
+
+# Wrapper to ensure migrations run on cold start
+def app(environ, start_response):
+    # Check for a special header or path to trigger admin setup safely
+    # Or just run it once if we can detect cold start
+    
+    # For now, let's try to run it but catch errors so we don't crash the whole app
+    try:
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        # Only try to create if it doesn't exist to save time
+        if not User.objects.filter(email='drsally@edu.com').exists():
+            print("🔄 Running migrations and admin setup...")
+            call_command('migrate')
+            
+            email = 'drsally@edu.com'
+            password = '1234@sally'
+            username = 'drsally'
+            
+            user = User.objects.filter(username=username).first()
+            if not user:
+                User.objects.create_superuser(username=username, email=email, password=password)
+                print(f"✅ Admin {email} created.")
+            else:
+                user.email = email
+                user.is_staff = True
+                user.is_superuser = True
+                user.set_password(password)
+                user.save()
+                print(f"✅ Admin {email} updated.")
+    except Exception as e:
+        print(f"⚠️ Startup task error: {e}")
+
+    return application(environ, start_response)
