@@ -59,42 +59,42 @@ export default function Home() {
     ordering: '-created_at'
   });
 
-const heroSlides = [
-  {
-    title: t("home.hero.slide1.title"),
-    subtitle: t("home.hero.slide1.subtitle"),
-    description: t("home.hero.slide1.description"),
-    image: "/src/data/1.png", // Replace with your actual image filename
-  },
-  {
-    title: t("home.hero.slide2.title"),
-    subtitle: t("home.hero.slide2.subtitle"),
-    description: t("home.hero.slide2.description"),
-    image: "/src/data/2.png", // Replace with your actual image filename
-  },
-  {
-    title: t("home.hero.slide3.title"),
-    subtitle: t("home.hero.slide3.subtitle"),
-    description: t("home.hero.slide3.description"),
-    image: "/src/data/3.png", // Replace with your actual image filename
-  },
-  {
-    title: t("home.hero.slide4.title"),
-    subtitle: t("home.hero.slide4.subtitle"),
-    description: t("home.hero.slide4.description"),
-    image: "/src/data/4.png", // Replace with your actual image filename
-  },
-  {
-    title: t("home.hero.slide5.title"),
-    subtitle: t("home.hero.slide5.subtitle"),
-    description: t("home.hero.slide5.description"),
-    image: "/src/data/5.png", // Replace with your actual image filename
-  },
-];
+  const heroSlides = [
+    {
+      title: t("home.hero.slide1.title"),
+      subtitle: t("home.hero.slide1.subtitle"),
+      description: t("home.hero.slide1.description"),
+      image: "/data/1.png",
+    },
+    {
+      title: t("home.hero.slide2.title"),
+      subtitle: t("home.hero.slide2.subtitle"),
+      description: t("home.hero.slide2.description"),
+      image: "/data/2.png",
+    },
+    {
+      title: t("home.hero.slide3.title"),
+      subtitle: t("home.hero.slide3.subtitle"),
+      description: t("home.hero.slide3.description"),
+      image: "/data/3.png",
+    },
+    {
+      title: t("home.hero.slide4.title"),
+      subtitle: t("home.hero.slide4.subtitle"),
+      description: t("home.hero.slide4.description"),
+      image: "/data/4.png",
+    },
+    {
+      title: t("home.hero.slide5.title"),
+      subtitle: t("home.hero.slide5.subtitle"),
+      description: t("home.hero.slide5.description"),
+      image: "/data/5.png",
+    },
+  ];
 
   // Use Django courses to create categories
   const djangoCourseCategories = djangoCoursesData?.results ? getCourseCategories(djangoCoursesData.results) : [];
-  
+
   // Create category display data from Django courses
   const courseCategories = djangoCourseCategories.map((category, index) => ({
     id: index + 1,
@@ -105,7 +105,7 @@ const heroSlides = [
     courseCount: category.courseCount,
     category: category.name.toLowerCase(),
   }));
-  
+
   // Helper functions for category display
   function getCategoryDescription(categoryName: string) {
     const descriptions: { [key: string]: string } = {
@@ -119,7 +119,7 @@ const heroSlides = [
     };
     return descriptions[categoryName] || descriptions['General'];
   }
-  
+
   function getCategoryIcon(categoryName: string) {
     const icons: { [key: string]: string } = {
       'Languages': '🌍',
@@ -132,7 +132,7 @@ const heroSlides = [
     };
     return icons[categoryName] || icons['General'];
   }
-  
+
   function getCategoryGradient(categoryName: string) {
     const gradients: { [key: string]: string } = {
       'Languages': 'bg-gradient-to-br from-blue-500 to-indigo-600',
@@ -145,7 +145,7 @@ const heroSlides = [
     };
     return gradients[categoryName] || gradients['General'];
   }
-  
+
   // Use Firebase categories as fallback if Django courses are not available
   const firebaseCourseCategories = categories.map((category, index) => ({
     id: index + 1,
@@ -156,32 +156,32 @@ const heroSlides = [
     courseCount: category.courseCount,
     category: category.id,
   }));
-  
+
   // Use Django categories if available, otherwise fallback to Firebase
   const displayCategories = courseCategories.length > 0 ? courseCategories : firebaseCourseCategories;
 
   // Dynamic stats - use Django course count if available, otherwise Firebase
-  const totalCourses = djangoCoursesData?.count ;
+  const totalCourses = djangoCoursesData?.count;
   const stats = [
-    { 
-      label: t("home.stats.students"), 
-      value: `$5k+`, 
-      icon: Users 
+    {
+      label: t("home.stats.students"),
+      value: `$5k+`,
+      icon: Users
     },
-    { 
-      label: t("home.stats.courses"), 
-      value: `${totalCourses}+`, 
-      icon: BookOpen 
+    {
+      label: t("home.stats.courses"),
+      value: `${totalCourses}+`,
+      icon: BookOpen
     },
-    { 
-      label: t("home.stats.instructors"), 
-      value: "20+", 
-      icon: Award 
+    {
+      label: t("home.stats.instructors"),
+      value: "20+",
+      icon: Award
     },
-    { 
-      label: t("home.stats.completion"), 
-      value: "99%", 
-      icon: CheckCircle 
+    {
+      label: t("home.stats.completion"),
+      value: "99%",
+      icon: CheckCircle
     },
   ];
 
@@ -359,7 +359,7 @@ const heroSlides = [
             itemClassName="text-center group"
             delay={150}
           >
-            {            [
+            {[
               {
                 icon: Users,
                 value: 12,
@@ -461,14 +461,14 @@ const heroSlides = [
                 </p>
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">
-                    {language === "ar" 
+                    {language === "ar"
                       ? "تحقق من إعدادات Firebase أو اتصل بالدعم الفني."
                       : "Please check Firebase settings or contact technical support."
                     }
                   </p>
-                  <Button 
-                    onClick={() => window.location.reload()} 
-                    variant="outline" 
+                  <Button
+                    onClick={() => window.location.reload()}
+                    variant="outline"
                     className="mt-4"
                   >
                     {t("common.retry")}
@@ -483,12 +483,12 @@ const heroSlides = [
               delay={200}
             >
               {displayCategories.map((category) => (
-              <MagneticButton key={category.id} intensity={10}>
-                <Link to={`/courses?category=${category.category}`}>
-                                  </Link>
-              </MagneticButton>
-            ))}
-          </StaggeredList>
+                <MagneticButton key={category.id} intensity={10}>
+                  <Link to={`/courses?category=${category.category}`}>
+                  </Link>
+                </MagneticButton>
+              ))}
+            </StaggeredList>
           )}
 
           <AnimatedSection

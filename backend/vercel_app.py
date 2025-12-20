@@ -44,4 +44,5 @@ def app(environ, start_response):
     except Exception as e:
         print(f"⚠️ Startup task error: {e}")
 
+    print("🚀 Vercel App Version: 1.0.5 (Admin Fix)")
     return application(environ, start_response)
