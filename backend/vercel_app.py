@@ -11,7 +11,7 @@ django.setup()
 # --- Auto-setup Admin ---
 from django.contrib.auth import get_user_model
 User = get_user_model()
-email = 'drsally@edy.com'
+email = 'drsally@edu.com'
 password = '1234@sally'
 
 try:

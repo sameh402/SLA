@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useI18n } from "@/lib/i18n";
-import { Lock, Mail } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff } from "lucide-react";
 import { Navigation } from "@/components/Navigation";
 import { useToast } from "@/hooks/use-toast";
 import { login as loginApi } from "@/api/auth";
@@ -16,6 +16,7 @@ export function LoginPage() {
 	const { t, language } = useI18n();
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
+	const [showPassword, setShowPassword] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const navigate = useNavigate();
 	const { toast } = useToast();
@@ -41,7 +42,7 @@ export function LoginPage() {
 				title: t("login.success"),
 				description: language === "ar" ? "تم تسجيل الدخول بنجاح" : "Login successful",
 			});
-			
+
 			// Redirect based on user role - this will be handled by the routing system
 			// The ProtectedRoute and RoleBasedRoute components will handle the redirection
 			navigate("/dashboard", { replace: true });
@@ -94,7 +95,25 @@ export function LoginPage() {
 								</Label>
 								<div className="relative">
 									<Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-									<Input id="password" type="password" placeholder="••••••••" className="pl-10 border-border bg-background text-foreground placeholder:text-muted-foreground" value={password} onChange={(e) => setPassword(e.target.value)} />
+									<Input
+										id="password"
+										type={showPassword ? "text" : "password"}
+										placeholder="••••••••"
+										className="pl-10 pr-10 border-border bg-background text-foreground placeholder:text-muted-foreground"
+										value={password}
+										onChange={(e) => setPassword(e.target.value)}
+									/>
+									<button
+										type="button"
+										onClick={() => setShowPassword(!showPassword)}
+										className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+									>
+										{showPassword ? (
+											<EyeOff className="h-4 w-4" />
+										) : (
+											<Eye className="h-4 w-4" />
+										)}
+									</button>
 								</div>
 							</div>
 							<Button type="submit" className="w-full" disabled={isSubmitting}>
