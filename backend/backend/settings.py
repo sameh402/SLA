@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -51,6 +52,7 @@ INSTALLED_APPS = [
 	'payments',
 	'certificates',
 	'support',
+	'storages',
 ]
 
 MIDDLEWARE = [
@@ -135,6 +137,14 @@ STATIC_URL = 'static/'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Hostinger FTP Configuration
+HOSTINGER_FTP_HOST = os.environ.get('HOSTINGER_FTP_HOST', '145.223.86.128')
+HOSTINGER_FTP_USER = os.environ.get('HOSTINGER_FTP_USER', 'u987892666.smartonlinelearningedu.com')
+HOSTINGER_FTP_PASSWORD = os.environ.get('HOSTINGER_FTP_PASSWORD', 'Sameh@123@1999')
+HOSTINGER_FTP_PORT = int(os.environ.get('HOSTINGER_FTP_PORT', 21))
+HOSTINGER_FTP_ROOT = os.environ.get('HOSTINGER_FTP_ROOT', '/public_html/media/videos/')
+HOSTINGER_BASE_URL = os.environ.get('HOSTINGER_BASE_URL', 'https://smartonlinelearningedu.com/media/videos/')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
