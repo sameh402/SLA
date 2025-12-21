@@ -7,7 +7,7 @@
             "destination": "https://sla-delta-hazel.vercel.app/api/$1"
         },
         {
-            "source": "/((?!api/).*)",
+            "source": "/(.*)",
             "destination": "/index.html"
         }
     ],

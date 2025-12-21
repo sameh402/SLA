@@ -1,0 +1,9 @@
+{
+    "redirects": [
+        {
+            "source": "/",
+            "destination": "/LMSfrontend",
+            "permanent": true
+        }
+    ]
+}
