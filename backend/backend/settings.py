@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-vj$9a=wqy^e_u3g0@n73y520w3c9$t6o1dgkp-r@ohhg@s&m^h
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -218,8 +218,10 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8080",
     "http://127.0.0.1:8080",
     "http://192.168.1.11:8080",
-     "http://localhost:8081",
+    "http://localhost:8081",
     "http://127.0.0.1:8081",
+    "https://sla-frontend-beta.vercel.app",
+    "https://*.vercel.app",
 ]
 
 # LOCAL DEV FIXES
