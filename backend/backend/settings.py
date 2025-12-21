@@ -27,7 +27,7 @@ SECRET_KEY = 'django-insecure-vj$9a=wqy^e_u3g0@n73y520w3c9$t6o1dgkp-r@ohhg@s&m^h
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['*']  # Allow all hosts for now, restrict in production
 
 
 # Application definition
@@ -202,6 +202,9 @@ CORS_ALLOWED_ORIGINS = [
 	'http://192.168.1.11:8080',
     'http://localhost:8081',
     'http://127.0.0.1:8081',
+    'https://sla-frontend-beta.vercel.app',
+    'https://sla-frontend-git-newcategories-sameh402s-projects.vercel.app',
+    'https://sla-frontend-d-h0wczh3b-sameh402s-projects.vercel.app',
 ]
 
 # Custom user model
@@ -221,7 +224,9 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8081",
     "http://127.0.0.1:8081",
     "https://sla-frontend-beta.vercel.app",
-    "https://*.vercel.app",
+    "https://sla-frontend-git-newcategories-sameh402s-projects.vercel.app",
+    "https://sla-frontend-d-h0wczh3b-sameh402s-projects.vercel.app",
+    "https://sla-delta-hazel.vercel.app",
 ]
 
 # LOCAL DEV FIXES
