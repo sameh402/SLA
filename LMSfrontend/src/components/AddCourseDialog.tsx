@@ -1,12 +1,13 @@
 import React, { useRef, useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { Plus, Upload, Trash2, Video } from 'lucide-react';
+import { Plus, Upload, Trash2, Video, Loader2 } from 'lucide-react';
 import { VideoContent } from '@/lib/coursesData';
+import { Progress } from '@/components/ui/progress';
 
 export interface AddCourseFormValues {
   title: string;
@@ -25,11 +26,12 @@ export interface AddCourseFormValues {
 interface AddCourseDialogProps {
   open: boolean;
   setOpen: (open: boolean) => void;
-  onAddCourse: (course: AddCourseFormValues) => Promise<boolean | void> | boolean | void;
+  onAddCourse: (course: AddCourseFormValues, onProgress: (videoId: number, progress: number) => void) => Promise<boolean | void> | boolean | void;
   categories: string[];
 }
 
 export default function AddCourseDialog({ open, setOpen, onAddCourse, categories }: AddCourseDialogProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<AddCourseFormValues>({
     title: '',
@@ -59,6 +61,7 @@ export default function AddCourseDialog({ open, setOpen, onAddCourse, categories
     const newVideo: VideoContent = {
       id: Date.now(),
       title: '',
+      session: '',
       description: '',
       url: '',
       duration: '',
@@ -82,12 +85,12 @@ export default function AddCourseDialog({ open, setOpen, onAddCourse, categories
   };
 
   const handleVideoFileUpload = (videoId: number, file: File) => {
-    // Simply store the file for later upload to backend
+    console.log(`📎 File selected for video ${videoId}: ${file.name} (${file.size} bytes)`);
     setFormData({
       ...formData,
       videos: formData.videos.map((video) =>
-        video.id === videoId ? { 
-          ...video, 
+        video.id === videoId ? {
+          ...video,
           file: file,
           uploadProgress: 0,
           isUploaded: false
@@ -113,10 +116,21 @@ export default function AddCourseDialog({ open, setOpen, onAddCourse, categories
   };
 
   const handleSubmit = async () => {
-    const result = await onAddCourse(formData);
-    if (result !== false) {
-      setOpen(false);
-      resetForm();
+    console.log("📤 [Dialog] Submitting form data:", formData);
+    setIsSubmitting(true);
+    try {
+      const result = await onAddCourse(formData, (videoId, progress) => {
+        setFormData(prev => ({
+          ...prev,
+          videos: prev.videos.map(v => v.id === videoId ? { ...v, uploadProgress: progress } : v)
+        }));
+      });
+      if (result !== false) {
+        setOpen(false);
+        resetForm();
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -231,7 +245,6 @@ export default function AddCourseDialog({ open, setOpen, onAddCourse, categories
               <SelectContent>
                 <SelectItem value="draft">Draft</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
-                {/* <SelectItem value="archived">Archived</SelectItem> */}
               </SelectContent>
             </Select>
           </div>
@@ -262,7 +275,11 @@ export default function AddCourseDialog({ open, setOpen, onAddCourse, categories
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-2">
+                      <Label>Session Name</Label>
+                      <Input value={video.session || ''} onChange={(e) => updateVideo(video.id, 'session', e.target.value)} placeholder="e.g. Introduction" />
+                    </div>
                     <div className="space-y-2">
                       <Label>Video Title</Label>
                       <Input value={video.title} onChange={(e) => updateVideo(video.id, 'title', e.target.value)} placeholder="Video title" />
@@ -278,9 +295,9 @@ export default function AddCourseDialog({ open, setOpen, onAddCourse, categories
                   </div>
                   <div className="space-y-2">
                     <Label>Upload Video File</Label>
-                    <Input 
-                      type="file" 
-                      accept="video/*" 
+                    <Input
+                      type="file"
+                      accept="video/*"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
@@ -289,10 +306,23 @@ export default function AddCourseDialog({ open, setOpen, onAddCourse, categories
                       }}
                     />
                     {video.file && (
-                      <div className="text-xs text-green-600">
-                        ✅ File selected: {video.file.name}
-                        <br />
-                        <span className="text-xs text-gray-500">Will be uploaded when course is created</span>
+                      <div className="space-y-2">
+                        <div className="text-xs text-green-600 flex items-center justify-between">
+                          <span>✅ File selected: {video.file.name}</span>
+                          {video.uploadProgress !== undefined && (
+                            <span className="font-medium">{video.uploadProgress}%</span>
+                          )}
+                        </div>
+                        {video.uploadProgress !== undefined && (
+                          <Progress value={video.uploadProgress} className="h-2" />
+                        )}
+                        <span className="text-xs text-gray-500 block">
+                          {video.uploadProgress === undefined
+                            ? "Will be uploaded when course is created"
+                            : video.uploadProgress === 100
+                              ? "Upload complete!"
+                              : "Uploading..."}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -302,8 +332,15 @@ export default function AddCourseDialog({ open, setOpen, onAddCourse, categories
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
-            <Button variant="outline" onClick={() => { setOpen(false); resetForm(); }}>Cancel</Button>
-            <Button onClick={handleSubmit}>Create Course</Button>
+            <Button variant="outline" onClick={() => { setOpen(false); resetForm(); }} disabled={isSubmitting}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : "Create Course"}
+            </Button>
           </div>
         </div>
       </DialogContent>

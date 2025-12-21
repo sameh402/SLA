@@ -4,15 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { collection, addDoc, getDocs, setDoc, doc} from "firebase/firestore";
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { 
-  Plus, 
-  Search, 
+import {
+  Plus,
+  Search,
   Edit,
   Trash2,
   Users,
@@ -23,31 +22,105 @@ import {
   MoreHorizontal,
   Video,
   Upload,
-  Image as ImageIcon,
   Play,
-  Save
+  Save,
+  Loader2
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { db } from '@/lib/firebase';
-import { CourseWithVideos, VideoContent, coursesWithContent } from '@/lib/coursesData';
-// import { addCourseToDjango, deleteCourseFromDjango, getCoursesFromDjango, updateCourseInDjango } from '@shared/api';
-import  { AddCourseFormValues } from '@/components/newDahsboard/AddCourseDialog';
-import { adminListCourses, adminCreateCourseMultipart, adminUpdateCourse, adminDeleteCourse, createCourseMedia, adminDeleteCourseMedia } from '@/api/admin';
+import { CourseWithVideos, VideoContent } from '@/lib/coursesData';
+import { adminListCourses, adminCreateCourseMultipart, adminUpdateCourse, adminDeleteCourse, createCourseMedia, adminDeleteCourseMedia, adminGetCourseMedia } from '@/api/admin';
 import AddCourseDialog from '@/components/AddCourseDialog';
-import { adminGetCourseMedia } from "@/api/admin"; // 👈 You’ll create this small helper in your API layer
-
-
+import { Progress } from '@/components/ui/progress';
 
 // Use shared types and data for consistency
 type Course = Omit<CourseWithVideos, 'id' | 'instructor'> & { id: string; instructors: string[] };
-const initialCourses: Course[] = coursesWithContent.map(c => ({
-  ...c,
-  id: c.id.toString(),
-  instructors: c.instructor ? [c.instructor] : [],
-}));
 
+const categories = ["General", "Programming", "Language", "Graphic", "Medical"];
 
-const categories = ["General", "Programming","Language","Graphic","Medical"];
+const slugify = (text: string) => {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-');
+};
+
+const uploadWithProgress = (url: string, file: File, courseFolder: string, onProgress: (progress: number) => void): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('course_folder', courseFolder);
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        const percentComplete = Math.round((e.loaded / e.total) * 100);
+        onProgress(percentComplete);
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const response = JSON.parse(xhr.responseText);
+          resolve(response);
+        } catch (err) {
+          reject(new Error('Invalid JSON response from server'));
+        }
+      } else {
+        reject(new Error(`Upload failed with status ${xhr.status}`));
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      reject(new Error('Network error during upload. Check if the file size exceeds server limits.'));
+    });
+
+    xhr.addEventListener('abort', () => {
+      reject(new Error('Upload aborted'));
+    });
+
+    xhr.open('POST', url);
+    xhr.timeout = 600000; // 10 minutes
+    xhr.ontimeout = () => {
+      reject(new Error('Upload timed out after 10 minutes'));
+    };
+
+    xhr.send(formData);
+  });
+};
+
+const compressVideo = async (file: File, onProgress?: (msg: string) => void): Promise<File | Blob> => {
+  const win = window as any;
+
+  if (typeof SharedArrayBuffer === 'undefined') {
+    return file;
+  }
+
+  if (!win.FFmpeg) {
+    return file;
+  }
+
+  try {
+    const { createFFmpeg, fetchFile } = win.FFmpeg;
+    const ffmpeg = createFFmpeg({ log: false });
+
+    onProgress?.("Loading compressor...");
+    await ffmpeg.load();
+
+    onProgress?.("Compressing...");
+    ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
+
+    await ffmpeg.run('-i', 'input.mp4', '-vcodec', 'libx264', '-crf', '28', '-preset', 'veryfast', 'output.mp4');
+
+    const data = ffmpeg.FS('readFile', 'output.mp4');
+    return new File([data.buffer], file.name, { type: 'video/mp4' });
+  } catch (error) {
+    return file;
+  }
+};
 
 export default function Courses() {
   const navigate = useNavigate();
@@ -58,34 +131,29 @@ export default function Courses() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isAddCourseDialogOpen, setIsAddCourseDialogOpen] = useState(false);
   const [isEditContentDialogOpen, setIsEditContentDialogOpen] = useState(false);
   const [selectedCourseForContent, setSelectedCourseForContent] = useState<Course | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [apiCourses, setApiCourses] = useState<any[]>([]);
 
+  const fetchCourseMedia = async (courseId: number) => {
+    try {
+      const res = await adminGetCourseMedia(courseId);
+      const mediaItems = res.data.results || res.data || [];
+      return mediaItems.map((m: any, idx: number) => ({
+        id: m.id,
+        title: m.title,
+        session: m.session || "",
+        description: m.description || "",
+        url: m.file,
+        duration: m.duration || "",
+        order: m.order || idx + 1,
+        isUploaded: true
+      }));
+    } catch (error) {
+      return [];
+    }
+  };
 
-  // ...
-const fetchCourseMedia = async (courseId: number) => {
-  try {
-    const res = await adminGetCourseMedia(courseId);
-    const mediaItems = res.data.results || res.data || [];
-    return mediaItems.map((m: any, idx: number) => ({
-      id: m.id,
-      title: m.title,
-      description: m.media_type || "",
-      url: m.file,
-      duration: m.duration || "",
-      order: m.order || idx + 1,
-    }));
-  } catch (error) {
-    console.error("❌ Failed to fetch media for course:", error);
-    return [];
-  }
-};
-
-
-  // Form state
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -95,82 +163,73 @@ const fetchCourseMedia = async (courseId: number) => {
     duration: "",
     status: "draft" as Course['status'],
     thumbnail: "/placeholder.svg",
-    thumbnailFile: null as File | null, // 🆕 add this
+    thumbnailFile: null as File | null,
     videos: [] as VideoContent[]
   });
 
-  // Content editing state
   const [contentFormData, setContentFormData] = useState({
     title: "",
     description: "",
-    videos: [] as VideoContent[]
+    videos: [] as (VideoContent & { isUploaded?: boolean })[]
   });
 
+  const filteredCourses = courses.filter((course) => {
+    const matchesSearch =
+      course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.instructors.some((i) =>
+        i.toLowerCase().includes(searchTerm.toLowerCase())
+      );
 
-const filteredCourses = courses.filter((course) => {
-  const matchesSearch =
-    course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.instructors.some((i) =>
-      i.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const matchesStatus =
+      statusFilter === "all" ||
+      course.status.toLowerCase() === statusFilter.toLowerCase();
 
-  const matchesStatus =
-    statusFilter === "all" ||
-    course.status.toLowerCase() === statusFilter.toLowerCase();
+    const matchesCategory =
+      categoryFilter === "all" ||
+      course.category.toLowerCase() === categoryFilter.toLowerCase();
 
-  const matchesCategory =
-    categoryFilter === "all" ||
-    course.category.toLowerCase() === categoryFilter.toLowerCase();
+    return matchesSearch && matchesStatus && matchesCategory;
+  });
 
-  return matchesSearch && matchesStatus && matchesCategory;
-});
-
- 
   const addContentVideo = (e?: React.MouseEvent) => {
-  e?.preventDefault();
-  e?.stopPropagation();
+    e?.preventDefault();
+    e?.stopPropagation();
 
-  const newVideo: VideoContent = {
-    id: Date.now(), // temporary ID
-    title: "",
-    description: "",
-    url: "",
-    duration: "",
-    order: contentFormData.videos.length + 1,
+    const newVideo: VideoContent = {
+      id: Date.now(),
+      title: "",
+      session: "",
+      description: "",
+      url: "",
+      duration: "",
+      order: contentFormData.videos.length + 1,
+    };
+
+    setContentFormData((prev) => ({
+      ...prev,
+      videos: [...prev.videos, newVideo],
+    }));
   };
 
-  setContentFormData((prev) => ({
-    ...prev,
-    videos: [...prev.videos, newVideo],
-  }));
-};
+  const removeContentVideo = async (videoId: number, e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
 
-const removeContentVideo = async (videoId: number, e?: React.MouseEvent) => {
-  e?.preventDefault();
-  e?.stopPropagation();
+    const video = contentFormData.videos.find((v) => v.id === videoId);
 
-  // Find the video being removed
-  const video = contentFormData.videos.find((v) => v.id === videoId);
+    setContentFormData((prev) => ({
+      ...prev,
+      videos: prev.videos.filter((v) => v.id !== videoId),
+    }));
 
-  // Immediately remove from UI
-  setContentFormData((prev) => ({
-    ...prev,
-    videos: prev.videos.filter((v) => v.id !== videoId),
-  }));
-
-  // If the video was already uploaded (real DB ID), delete it from backend
-  if (video && selectedCourseForContent && !isNaN(Number(videoId)) && videoId < 9999999999999) {
-    try {
-      await adminDeleteCourseMedia(parseInt(selectedCourseForContent.id, 10), videoId);
-      console.log(`✅ Video ${videoId} deleted successfully from server.`);
-    } catch (error) {
-      console.error(`❌ Failed to delete video ${videoId}:`, error);
+    if (video && selectedCourseForContent && !isNaN(Number(videoId)) && videoId < 9999999999999) {
+      try {
+        await adminDeleteCourseMedia(parseInt(selectedCourseForContent.id, 10), videoId);
+      } catch (error) {
+        console.error("Failed to delete video:", error);
+      }
     }
-  } else {
-    console.log("🗑️ Removed local unsaved video only.");
-  }
-};
-
+  };
 
   const updateContentVideo = (videoId: number, field: keyof VideoContent, value: string) => {
     setContentFormData({
@@ -188,26 +247,20 @@ const removeContentVideo = async (videoId: number, e?: React.MouseEvent) => {
       const statusMap: Record<string, string> = {
         active: "published",
         draft: "draft",
-        // archived: "archived",
       };
 
       const payload = new FormData();
       payload.append("title", formData.title);
-     if (formData.thumbnailFile) {
-  // only send if user selected a new file
-  payload.append("thumbnail", formData.thumbnailFile);
-}
+      if (formData.thumbnailFile) {
+        payload.append("thumbnail", formData.thumbnailFile);
+      }
       payload.append("description", formData.description);
       payload.append("status", statusMap[formData.status] ?? formData.status ?? "draft");
       payload.append('instructors', JSON.stringify(formData.instructors.filter(i => i.trim() !== '')));
       const priceValue = formData.price ? parseFloat(formData.price) : 0;
       payload.append("price", Number.isNaN(priceValue) ? "0.00" : priceValue.toFixed(2));
-      if (formData.category) {
-        payload.append("category", formData.category);
-      }
-      if (formData.duration) {
-        payload.append("duration", formData.duration);
-      }
+      if (formData.category) payload.append("category", formData.category);
+      if (formData.duration) payload.append("duration", formData.duration);
 
       const res = await adminUpdateCourse(parseInt(editingCourse.id, 10), payload);
       const result = res?.data ?? {};
@@ -216,10 +269,10 @@ const removeContentVideo = async (videoId: number, e?: React.MouseEvent) => {
         result.status === "published"
           ? "active"
           : result.status === "draft"
-          ? "draft"
-          : result.status === "archived"
-          ? "archived"
-          : formData.status;
+            ? "draft"
+            : result.status === "archived"
+              ? "archived"
+              : formData.status;
 
       const priceFromResult = result.price ? parseFloat(result.price) : priceValue;
       const cleanedInstructors = formData.instructors.filter((i) => i.trim() !== "");
@@ -228,16 +281,16 @@ const removeContentVideo = async (videoId: number, e?: React.MouseEvent) => {
         prevCourses.map((course) =>
           course.id === editingCourse.id
             ? {
-                ...course,
-                title: result.title ?? formData.title,
-                description: result.description ?? formData.description,
-                instructors: cleanedInstructors.length ? cleanedInstructors : course.instructors,
-                category: formData.category || course.category,
-                price: Number.isNaN(priceFromResult) ? course.price : priceFromResult,
-                duration: formData.duration || course.duration,
-                status: normalizedStatus as Course['status'],
-                thumbnail: result.thumbnail || course.thumbnail,
-              }
+              ...course,
+              title: result.title ?? formData.title,
+              description: result.description ?? formData.description,
+              instructors: cleanedInstructors.length ? cleanedInstructors : course.instructors,
+              category: formData.category || course.category,
+              price: Number.isNaN(priceFromResult) ? course.price : priceFromResult,
+              duration: formData.duration || course.duration,
+              status: normalizedStatus as Course['status'],
+              thumbnail: result.thumbnail || course.thumbnail,
+            }
             : course
         )
       );
@@ -245,81 +298,103 @@ const removeContentVideo = async (videoId: number, e?: React.MouseEvent) => {
       setIsEditDialogOpen(false);
       setEditingCourse(null);
       resetForm();
-      console.log("✅ Course updated successfully!");
     } catch (error) {
-      console.error("❌ Failed to update course:", error);
+      console.error("Failed to update course:", error);
+      alert("Failed to update course.");
     }
   };
 
- const handleEditContent = async () => {
-  if (!selectedCourseForContent) return;
+  const handleEditContent = async () => {
+    if (!selectedCourseForContent) return;
 
-  try {
-    const courseId = parseInt(selectedCourseForContent.id, 10);
+    try {
+      const courseId = parseInt(selectedCourseForContent.id, 10);
+      const coursePayload = new FormData();
+      coursePayload.append("title", contentFormData.title);
+      coursePayload.append("description", contentFormData.description);
 
-    const coursePayload = new FormData();
-    coursePayload.append("title", contentFormData.title);
-    coursePayload.append("description", contentFormData.description);
-    
+      const res = await adminUpdateCourse(courseId, coursePayload);
+      const result = res?.data ?? {};
 
-    const res = await adminUpdateCourse(courseId, coursePayload);
-    const result = res?.data ?? {};
+      const courseFolder = slugify(contentFormData.title);
 
-    for (const [index, video] of contentFormData.videos.entries()) {
-      if (video.file) {
-        const mediaForm = new FormData();
-        mediaForm.append("course", String(courseId));
-        mediaForm.append("file", video.file);
-        mediaForm.append("media_type", "video");
-        mediaForm.append("title", video.title || `Video ${index + 1}`);
-        mediaForm.append("description", video.description || "");
-        mediaForm.append("duration", video.duration || "1");
-        mediaForm.append("order", String(video.order || index + 1));
+      for (const video of contentFormData.videos) {
+        if (video.file) {
+          const sessionFolder = video.session ? slugify(video.session) : 'general';
+          const fullFolderPath = `${courseFolder}/${sessionFolder}`;
 
-        try {
-          const uploadRes = await createCourseMedia(courseId, mediaForm);
-          console.log("✅ Uploaded video:", uploadRes.data);
-        } catch (uploadErr) {
-          console.error(`❌ Failed to upload video "${video.title}":`, uploadErr);
+          try {
+            const fileToUpload = await compressVideo(video.file);
+
+            const uploadResult = await uploadWithProgress(
+              import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/upload.php',
+              fileToUpload as File,
+              fullFolderPath,
+              (progress) => {
+                setContentFormData(prev => ({
+                  ...prev,
+                  videos: prev.videos.map(v => v.id === video.id ? { ...v, uploadProgress: progress } : v)
+                }));
+              }
+            );
+
+            if (uploadResult.status === 'success') {
+              const mediaForm = new FormData();
+              mediaForm.append("course", String(courseId));
+              mediaForm.append("file", uploadResult.url);
+              mediaForm.append("media_type", "video");
+              mediaForm.append("title", video.title || `Video`);
+              mediaForm.append("description", video.description || "");
+              mediaForm.append("duration", video.duration || "0:00");
+              mediaForm.append("order", String(video.order || 0));
+              mediaForm.append("session", video.session || "");
+
+              await createCourseMedia(courseId, mediaForm);
+
+              setContentFormData(prev => ({
+                ...prev,
+                videos: prev.videos.map(v => v.id === video.id ? { ...v, isUploaded: true } : v)
+              }));
+            } else {
+              alert(`Upload failed for ${video.title}: ${uploadResult.message}`);
+            }
+          } catch (uploadErr) {
+            alert(`Failed to upload video "${video.title}".`);
+          }
         }
       }
-    }
 
-    setCourses((prevCourses) =>
-      prevCourses.map((course) =>
-        course.id === selectedCourseForContent.id
-          ? {
+      setCourses((prevCourses) =>
+        prevCourses.map((course) =>
+          course.id === selectedCourseForContent.id
+            ? {
               ...course,
               title: result.title ?? contentFormData.title,
               description: result.description ?? contentFormData.description,
               videos: contentFormData.videos,
             }
-          : course
-      )
-    );
+            : course
+        )
+      );
 
-    setIsEditContentDialogOpen(false);
-    setSelectedCourseForContent(null);
-    setContentFormData({
-      title: "",
-      description: "",
-      videos: [],
-    });
-
-    console.log("✅ Course content & videos updated successfully!");
-  } catch (error) {
-    console.error("❌ Failed to update course content:", error);
-  }
-};
-
+      setIsEditContentDialogOpen(false);
+      setSelectedCourseForContent(null);
+      setContentFormData({
+        title: "",
+        description: "",
+        videos: [],
+      });
+    } catch (error) {
+      alert("Failed to update course content.");
+    }
+  };
 
   const handleDeleteCourse = async (courseId: string) => {
     try {
       await adminDeleteCourse(parseInt(courseId, 10));
       setCourses((prevCourses) => prevCourses.filter((course) => course.id !== courseId));
-      console.log(`✅ Course ${courseId} deleted successfully`);
     } catch (error) {
-      console.error("❌ Failed to delete course:", error);
+      console.error("Failed to delete course:", error);
     }
   };
 
@@ -328,40 +403,34 @@ const removeContentVideo = async (videoId: number, e?: React.MouseEvent) => {
     setFormData({
       title: course.title,
       description: course.description,
-  instructors: course.instructors,
+      instructors: course.instructors,
       category: course.category,
       price: course.price.toString(),
       duration: course.duration,
       status: course.status,
       thumbnail: course.thumbnail,
-      thumbnailFile: null,  
+      thumbnailFile: null,
       videos: course.videos
     });
     setIsEditDialogOpen(true);
   };
 
-
   const openEditContentDialog = async (course: Course) => {
-  setSelectedCourseForContent(course);
-
-  // Fetch latest media for this course
-  const videos = await fetchCourseMedia(parseInt(course.id, 10));
-
-  setContentFormData({
-    title: course.title,
-    description: course.description,
-    videos,
-  });
-
-  setIsEditContentDialogOpen(true);
-};
-
+    setSelectedCourseForContent(course);
+    const videos = await fetchCourseMedia(parseInt(course.id, 10));
+    setContentFormData({
+      title: course.title,
+      description: course.description,
+      videos,
+    });
+    setIsEditContentDialogOpen(true);
+  };
 
   const resetForm = () => {
     setFormData({
       title: "",
       description: "",
-  instructors: [""],
+      instructors: [""],
       category: "",
       price: "",
       duration: "",
@@ -372,62 +441,62 @@ const removeContentVideo = async (videoId: number, e?: React.MouseEvent) => {
     });
   };
 
-useEffect(() => {
-  async function loadCourses() {
-    try {
-      const res = await adminListCourses();
-      const djangoCourses = res?.data?.results ?? [];
+  useEffect(() => {
+    async function loadCourses() {
+      try {
+        const res = await adminListCourses();
+        const djangoCourses = res?.data?.results ?? [];
 
-      const mappedCourses = djangoCourses.map((c: any) => {
-        const safeCategory =
-          c.category && typeof c.category === "string" && c.category.trim() !== ""
-            ? c.category
-            : "General"; // 👈 fallback instead of "Uncategorized"
+        const mappedCourses = djangoCourses.map((c: any) => {
+          const safeCategory =
+            c.category && typeof c.category === "string" && c.category.trim() !== ""
+              ? c.category
+              : "General";
 
-        const safeDuration =
-          c.duration && typeof c.duration === "string" && c.duration.trim() !== ""
-            ? c.duration
-            : "N/A";
+          const safeDuration =
+            c.duration && typeof c.duration === "string" && c.duration.trim() !== ""
+              ? c.duration
+              : "N/A";
 
-        return {
-          id: c.id.toString(),
-          title: c.title || "Untitled Course",
-          description: c.description || "",
-          instructors:
-            Array.isArray(c.instructors) && c.instructors.length > 0
-              ? c.instructors
-              : ["Admin"],
-          category: safeCategory,
-          price: parseFloat(c.price) || 0,
-          duration: safeDuration,
-          status: c.status === "published" ? "active" : "draft",
-          thumbnail: c.thumbnail || "/placeholder.svg",
-          videos: (c.media || []).map((m: any, idx: number) => ({
-            id: m.id,
-            title: m.title,
-            description: m.description || "",
-            url: m.file,
-            duration: m.duration || "",
-            order: m.order || idx + 1,
-          })),
-          students: 0,
-          rating: 0,
-          progress: 0,
-        };
-      });
+          return {
+            id: c.id.toString(),
+            title: c.title || "Untitled Course",
+            description: c.description || "",
+            instructors:
+              Array.isArray(c.instructors) && c.instructors.length > 0
+                ? c.instructors
+                : ["Admin"],
+            category: safeCategory,
+            price: parseFloat(c.price) || 0,
+            duration: safeDuration,
+            status: c.status === "published" ? "active" : "draft",
+            thumbnail: c.thumbnail || "/placeholder.svg",
+            videos: (c.media || []).map((m: any, idx: number) => ({
+              id: m.id,
+              title: m.title,
+              session: m.session || "",
+              description: m.description || "",
+              url: m.file,
+              duration: m.duration || "",
+              order: m.order || idx + 1,
+            })),
+            students: 0,
+            rating: 0,
+            progress: 0,
+          };
+        });
 
-      setCourses(mappedCourses);
-    } catch (error) {
-      console.error("❌ Failed to load courses:", error);
+        setCourses(mappedCourses);
+      } catch (error) {
+        console.error("Failed to load courses:", error);
+      }
     }
-  }
 
-  loadCourses();
-}, []);
+    loadCourses();
+  }, []);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Courses</h1>
@@ -445,108 +514,107 @@ useEffect(() => {
           open={isAddDialogOpen}
           setOpen={setIsAddDialogOpen}
           categories={categories}
-           onAddCourse={async (newCourse) => {
-                      try {
-                        // Create FormData for the API with course data (without videos)
-                        const formData = new FormData();
-                        formData.append('title', newCourse.title);
-                        formData.append('description', newCourse.description);
-                        formData.append('price', newCourse.price || '0.00');
+          onAddCourse={async (newCourse, onProgress) => {
+            try {
+              const formData = new FormData();
+              formData.append('title', newCourse.title);
+              formData.append('description', newCourse.description);
+              formData.append('price', newCourse.price || '0.00');
 
-                        const statusMap: Record<string, string> = {
-                          active: 'published',
-                          draft: 'draft',
-                          // archived: 'archived',
-                                                    };
-                            formData.append('status', statusMap[newCourse.status] ?? 'draft');
+              const statusMap: Record<string, string> = {
+                active: 'published',
+                draft: 'draft',
+              };
+              formData.append('status', statusMap[newCourse.status] ?? 'draft');
 
-                            if (newCourse.category) formData.append('category', newCourse.category);
-                            if (newCourse.duration) formData.append('duration', newCourse.duration);
-                            if (newCourse.nextCourseRecommendation)
-                              formData.append('next_course_recommendation', newCourse.nextCourseRecommendation);
+              if (newCourse.category) formData.append('category', newCourse.category);
+              if (newCourse.duration) formData.append('duration', newCourse.duration);
+              if (newCourse.nextCourseRecommendation)
+                formData.append('next_course_recommendation', newCourse.nextCourseRecommendation);
 
-                            formData.append('instructors', JSON.stringify(newCourse.instructors.filter(i => i.trim() !== '')));
+              formData.append('instructors', JSON.stringify(newCourse.instructors.filter(i => i.trim() !== '')));
 
-                            if (newCourse.thumbnailFile) formData.append('thumbnail', newCourse.thumbnailFile);
+              if (newCourse.thumbnailFile) formData.append('thumbnail', newCourse.thumbnailFile);
 
-                                      
+              const response = await adminCreateCourseMultipart(formData);
+              const createdCourse = response.data;
+              const courseId = createdCourse.id;
 
-                        // Create the course first (without videos)
-                        const response = await adminCreateCourseMultipart(formData);
-                        const createdCourse = response.data;
-                        const courseId = createdCourse.id;
-          
-                        console.log("✅ Course created successfully:", createdCourse);
-          
-                        // Upload videos separately if any
-                        const uploadedVideos = [];
-                        if (courseId && newCourse.videos.length > 0) {
-                          for (const video of newCourse.videos) {
-                            if (video.file) {
-                              const mediaFormData = new FormData();
-                              mediaFormData.append('course', String(courseId));
-                              mediaFormData.append('file', video.file);
-                              mediaFormData.append('media_type', 'video');
-                              mediaFormData.append('title', video.title || video.file.name);
-                              mediaFormData.append('description', video.description || '');
-                              mediaFormData.append('duration', video.duration || '0:00');
-                              mediaFormData.append('order', String(video.order || uploadedVideos.length + 1));
-                              
-                              try {
-                                const mediaResponse = await createCourseMedia(courseId, mediaFormData);
-                                uploadedVideos.push({
-                                  id: mediaResponse.data.id,
-                                  title: mediaResponse.data.title,
-                                  description: mediaResponse.data.title,
-                                  url: mediaResponse.data.file,
-                                  duration: mediaResponse.data.duration || "0:00",
-                                  order: mediaResponse.data.order || uploadedVideos.length + 1,
-                                });
-                              } catch (mediaError) {
-                                console.error("❌ Failed to upload video:", video.title, mediaError);
-                              }
-                            }
-                          }
-                        }
-          
-                        
-                          const courseWithVideos: Course = {
-                          id: String(createdCourse.id),
-                          title: createdCourse.title || newCourse.title,
-                          description: createdCourse.description || newCourse.description,
-                          instructors: createdCourse.instructors?.length
-                            ? createdCourse.instructors
-                            : newCourse.instructors.filter(i => i.trim() !== ""),
-                          students: 0,
-                          rating: 0,
-                          status: createdCourse.status === "published" ? "active" : "draft",
-                          progress: 0,
-                          videos: uploadedVideos,
-                          category: createdCourse.category || newCourse.category || "Uncategorized",
-                          price: Number(createdCourse.price || newCourse.price || 0),
-                          duration: createdCourse.duration || newCourse.duration || "—",
-                          thumbnail: createdCourse.thumbnail || "/placeholder.svg",
-                        };
+              const courseFolder = slugify(newCourse.title);
+              const uploadedVideos = [];
 
-          
-                        setCourses((prev) => [courseWithVideos, ...prev]);
-                        
-                        // Refresh API courses data
-                        const coursesResponse = await adminListCourses();
-                        setApiCourses(coursesResponse.data.results || []);
-                        
-                        console.log("✅ Course created successfully with", uploadedVideos.length, "videos!");
-                        return true;
-                      } catch (error) {
-                        console.error("❌ Failed to create course:", error);
-                        alert("Failed to create course. Please try again.");
-                        return false;
+              for (const video of newCourse.videos) {
+                if (video.file) {
+                  const sessionFolder = video.session ? slugify(video.session) : 'general';
+                  const fullFolderPath = `${courseFolder}/${sessionFolder}`;
+
+                  try {
+                    const fileToUpload = await compressVideo(video.file);
+
+                    const uploadResult = await uploadWithProgress(
+                      import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/upload.php',
+                      fileToUpload as File,
+                      fullFolderPath,
+                      (progress) => {
+                        onProgress(video.id, progress);
                       }
-                    }}
+                    );
+
+                    if (uploadResult.status === 'success') {
+                      const mediaFormData = new FormData();
+                      mediaFormData.append('course', String(courseId));
+                      mediaFormData.append('file', uploadResult.url);
+                      mediaFormData.append('media_type', 'video');
+                      mediaFormData.append('title', video.title || video.file.name);
+                      mediaFormData.append('description', video.description || '');
+                      mediaFormData.append('duration', video.duration || '0:00');
+                      mediaFormData.append('order', String(video.order || 0));
+                      mediaFormData.append('session', video.session || "");
+
+                      const mediaResponse = await createCourseMedia(courseId, mediaFormData);
+                      uploadedVideos.push({
+                        id: mediaResponse.data.id,
+                        title: mediaResponse.data.title,
+                        description: mediaResponse.data.title,
+                        url: uploadResult.url,
+                        duration: mediaResponse.data.duration || "0:00",
+                        order: mediaResponse.data.order || 0,
+                      });
+                    }
+                  } catch (mediaError) {
+                    console.error("Failed to upload video:", mediaError);
+                  }
+                }
+              }
+
+              const courseWithVideos: Course = {
+                id: String(createdCourse.id),
+                title: createdCourse.title || newCourse.title,
+                description: createdCourse.description || newCourse.description,
+                instructors: createdCourse.instructors?.length
+                  ? createdCourse.instructors
+                  : newCourse.instructors.filter(i => i.trim() !== ""),
+                students: 0,
+                rating: 0,
+                status: createdCourse.status === "published" ? "active" : "draft",
+                progress: 0,
+                videos: uploadedVideos,
+                category: createdCourse.category || newCourse.category || "Uncategorized",
+                price: Number(createdCourse.price || newCourse.price || 0),
+                duration: createdCourse.duration || newCourse.duration || "—",
+                thumbnail: createdCourse.thumbnail || "/placeholder.svg",
+              };
+
+              setCourses((prev) => [courseWithVideos, ...prev]);
+              return true;
+            } catch (error) {
+              alert("Failed to create course.");
+              return false;
+            }
+          }}
         />
       </div>
 
-      {/* Filters */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Filters</CardTitle>
@@ -589,13 +657,12 @@ useEffect(() => {
         </CardContent>
       </Card>
 
-      {/* Courses Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCourses.map((course) => (
           <Card key={course.id} className="overflow-hidden">
             <div className="aspect-video bg-muted relative">
-              <img 
-                src={course.thumbnail} 
+              <img
+                src={course.thumbnail}
                 alt={course.title}
                 className="w-full h-full object-cover"
               />
@@ -647,7 +714,7 @@ useEffect(() => {
                 </div>
               )}
             </div>
-            
+
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -661,12 +728,12 @@ useEffect(() => {
                 </Badge>
               </div>
             </CardHeader>
-            
+
             <CardContent>
               <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
                 {course.description}
               </p>
-              
+
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center space-x-4">
@@ -684,7 +751,7 @@ useEffect(() => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center justify-between pt-2 border-t">
                   <div className="flex items-center text-sm font-medium">
                     <DollarSign className="w-3 h-3 mr-1" />
@@ -727,64 +794,45 @@ useEffect(() => {
         </Card>
       )}
 
-      {/* Edit Course Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Course</DialogTitle>
-            <DialogDescription>
-              Update the course information below
-            </DialogDescription>
+            <DialogDescription>Update the course information below</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {/* Course Image Upload */}
-              <div className="space-y-4">
-                <Label className="text-base font-medium">Course Cover Image</Label>
-                <div className="flex items-center space-x-4">
-                  <div className="w-32 h-20 border border-border rounded-lg overflow-hidden bg-muted">
-                    <img 
-                      src={formData.thumbnail} 
-                      alt="Course cover" 
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div>
-                    {/* Hidden file input */}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      ref={fileInputRef}
-                      className="hidden"
-
-                        onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
+            <div className="space-y-4">
+              <Label className="text-base font-medium">Course Cover Image</Label>
+              <div className="flex items-center space-x-4">
+                <div className="w-32 h-20 border border-border rounded-lg overflow-hidden bg-muted">
+                  <img src={formData.thumbnail} alt="Course cover" className="w-full h-full object-cover" />
+                </div>
+                <div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
                         const imageUrl = URL.createObjectURL(file);
                         setFormData((prev) => ({
-                        ...prev,
-                        thumbnail: imageUrl,     // preview
-                        thumbnailFile: file,     // actual upload
+                          ...prev,
+                          thumbnail: imageUrl,
+                          thumbnailFile: file,
                         }));
-                        }
-                        }}
-                        />
-
-                        <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => fileInputRef.current?.click()}
-                        >
-                        <Upload className="w-4 h-4 mr-2" />
-                        Change Image
-                        </Button>
-
-                        <p className="text-xs text-muted-foreground mt-1">
-                        Recommended size: 1920x1080px
-                        </p>
-                        </div>
-                        </div>
-                        </div>
-
+                      }
+                    }}
+                  />
+                  <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Change Image
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1">Recommended size: 1920x1080px</p>
+                </div>
+              </div>
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -845,9 +893,7 @@ useEffect(() => {
               <div className="space-y-2">
                 <Label htmlFor="edit-category">Category</Label>
                 <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => (
                       <SelectItem key={category} value={category}>{category}</SelectItem>
@@ -879,13 +925,10 @@ useEffect(() => {
             <div className="space-y-2">
               <Label htmlFor="edit-status">Status</Label>
               <Select value={formData.status} onValueChange={(value: Course['status']) => setFormData({ ...formData, status: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
-                  {/* <SelectItem value="archived">Archived</SelectItem> */}
                 </SelectContent>
               </Select>
             </div>
@@ -895,16 +938,13 @@ useEffect(() => {
                 setIsEditDialogOpen(false);
                 setEditingCourse(null);
                 resetForm();
-              }}>
-                Cancel
-              </Button>
+              }}>Cancel</Button>
               <Button onClick={handleEditCourse}>Update Course</Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Content Dialog */}
       <Dialog open={isEditContentDialogOpen} onOpenChange={setIsEditContentDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -921,7 +961,7 @@ useEffect(() => {
                   placeholder="Enter course title"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="content-description">Description</Label>
                 <Textarea
@@ -941,7 +981,7 @@ useEffect(() => {
                     Add Video
                   </Button>
                 </div>
-                
+
                 {contentFormData.videos.length === 0 ? (
                   <div className="text-center py-8 border border-dashed border-border rounded-lg">
                     <Video className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
@@ -955,16 +995,19 @@ useEffect(() => {
                     <div key={video.id} className="p-4 border border-border rounded-lg space-y-3">
                       <div className="flex items-center justify-between">
                         <h4 className="font-medium">Video {index + 1}</h4>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => removeContentVideo(video.id, e)}
-                        >
+                        <Button type="button" variant="ghost" size="sm" onClick={(e) => removeContentVideo(video.id, e)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-2">
+                          <Label>Session Name</Label>
+                          <Input
+                            value={video.session || ''}
+                            onChange={(e) => updateContentVideo(video.id, 'session', e.target.value)}
+                            placeholder="e.g. Introduction"
+                          />
+                        </div>
                         <div className="space-y-2">
                           <Label>Video Title</Label>
                           <Input
@@ -999,7 +1042,6 @@ useEffect(() => {
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              // تحديث الـ state بحيث يخزن الملف
                               setContentFormData({
                                 ...contentFormData,
                                 videos: contentFormData.videos.map((v) =>
@@ -1009,13 +1051,32 @@ useEffect(() => {
                             }
                           }}
                         />
-                        {video.url && (
-                          <video
-                            src={video.url}
-                            controls
-                            className="w-full mt-2 rounded-md border border-border"
-                          />
-                          )}
+                        {video.url && <video src={video.url} controls className="w-full mt-2 rounded-md border border-border" />}
+
+                        {(video.uploadProgress !== undefined && video.uploadProgress > 0 && video.uploadProgress < 100) && (
+                          <div className="mt-2 space-y-1">
+                            <div className="flex justify-between text-xs text-muted-foreground">
+                              <span>Uploading...</span>
+                              <span>{video.uploadProgress}%</span>
+                            </div>
+                            <Progress value={video.uploadProgress} className="h-1" />
+                          </div>
+                        )}
+
+                        {video.uploadProgress === 100 && !video.isUploaded && (
+                          <div className="mt-2 flex items-center text-xs text-blue-500">
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                            Processing on server...
+                          </div>
+                        )}
+
+                        {video.isUploaded && (
+                          <div className="mt-2 text-xs text-green-500 flex items-center">
+                            <Badge variant="outline" className="text-green-500 border-green-500 bg-green-50">
+                              Uploaded Successfully
+                            </Badge>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))
@@ -1026,9 +1087,7 @@ useEffect(() => {
                 <Button variant="outline" onClick={() => {
                   setIsEditContentDialogOpen(false);
                   setSelectedCourseForContent(null);
-                }}>
-                  Cancel
-                </Button>
+                }}>Cancel</Button>
                 <Button onClick={handleEditContent}>
                   <Save className="w-4 h-4 mr-2" />
                   Save Changes

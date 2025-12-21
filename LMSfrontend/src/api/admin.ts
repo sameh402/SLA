@@ -25,7 +25,14 @@ export const adminGetUserProfile = (id: number) => api.get(`/api/admin/users/pro
 
 export const adminListCourses = (params?: Record<string, any>) => api.get('/api/admin/courses/', { params });
 export const adminCreateCourse = (payload: any) => api.post('/api/admin/courses/', payload);
-export const adminUpdateCourse = (id: number, payload: any) => api.patch(`/api/admin/courses/${id}/`, payload);
+export const adminUpdateCourse = (id: number, payload: any) => {
+  if (payload instanceof FormData) {
+    return api.patch(`/api/admin/courses/${id}/`, payload, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
+  return api.patch(`/api/admin/courses/${id}/`, payload);
+};
 export const adminDeleteCourse = (id: number) => api.delete(`/api/admin/courses/${id}/`);
 export const adminGetCourseProfile = (id: number) => api.get(`/api/admin/courses/profile/${id}/`);
 

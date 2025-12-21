@@ -2,11 +2,13 @@
 export interface VideoContent {
   id: number;
   title: string;
+  session?: string;
   description: string;
   url: string;
   duration: string;
   order: number;
-  file?: File; // 👈 add this
+  file?: File;
+  uploadProgress?: number;
 }
 
 export interface CourseWithVideos {

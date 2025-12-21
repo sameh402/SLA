@@ -29,7 +29,6 @@ class Course(models.Model):
 
 
 from django.utils.text import slugify
-from .storage import HostingerVideoStorage
 
 def course_media_path(instance, filename):
     # Clean up the course title to be used as a folder name
@@ -46,11 +45,12 @@ class CourseMedia(models.Model):
 		OTHER = 'other', 'Other'
 
 	course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='media')
-	file = models.FileField(upload_to=course_media_path, storage=HostingerVideoStorage())
+	file = models.CharField(max_length=500)
 	media_type = models.CharField(max_length=20, choices=MediaTypes.choices)
 	title = models.CharField(max_length=255)
 	order = models.PositiveIntegerField(default=0)
-	duration = models.PositiveIntegerField(null=True, blank=True, help_text="Duration in seconds (for video/audio)")
+	duration = models.CharField(max_length=20, null=True, blank=True, help_text="Duration (e.g. 10:30)")
+	session = models.CharField(max_length=255, blank=True, null=True)
 	is_preview = models.BooleanField(default=False, help_text="Whether this content is available as preview")
 	created_at = models.DateTimeField(auto_now_add=True)
 

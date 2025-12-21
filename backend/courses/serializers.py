@@ -50,7 +50,7 @@ class CourseMediaSerializer(serializers.ModelSerializer):
         model = CourseMedia
         fields = [
             'id', 'course', 'file', 'media_type', 'title',
-            'order', 'is_preview', 'duration', 'created_at'
+            'order', 'is_preview', 'duration', 'session', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
 
