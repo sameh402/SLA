@@ -930,87 +930,125 @@ export default function Dashboard() {
                   </Button>
                 </div>
 
-                {editFormData.videos.map((video, index) => (
-                  <div key={video.id} className="p-4 border rounded-lg space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium">Video {index + 1}</h4>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeVideoFromEditCourse(video.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label>Video Title</Label>
-                        <Input
-                          value={video.title}
-                          onChange={(e) => {
-                            const updatedVideos = editFormData.videos.map(v =>
-                              v.id === video.id ? { ...v, title: e.target.value } : v
-                            );
-                            setEditFormData({ ...editFormData, videos: updatedVideos });
-                          }}
-                          placeholder="Video title"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Duration</Label>
-                        <Input
-                          value={video.duration}
-                          onChange={(e) => {
-                            const updatedVideos = editFormData.videos.map(v =>
-                              v.id === video.id ? { ...v, duration: e.target.value } : v
-                            );
-                            setEditFormData({ ...editFormData, videos: updatedVideos });
-                          }}
-                          placeholder="e.g. 25:30"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Video Description</Label>
-                      <Textarea
-                        value={video.description}
-                        onChange={(e) => {
-                          const updatedVideos = editFormData.videos.map(v =>
-                            v.id === video.id ? { ...v, description: e.target.value } : v
-                          );
-                          setEditFormData({ ...editFormData, videos: updatedVideos });
-                        }}
-                        placeholder="Video description"
-                        rows={2}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Upload Video File</Label>
-                      <Input
-                        type="file"
-                        accept="video/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const updatedVideos = editFormData.videos.map((v) =>
-                              v.id === video.id ? { ...v, file, url: URL.createObjectURL(file) } : v
-                            );
-                            setEditFormData({ ...editFormData, videos: updatedVideos });
-                          }
-                        }}
-                      />
-                      {video.url && (
-                        <video
-                          src={video.url}
-                          controls
-                          className="w-full mt-2 rounded-md border border-border"
-                        />
-                      )}
-
-                    </div>
+                {editFormData.videos.length === 0 ? (
+                  <div className="text-center py-8 border border-dashed border-border rounded-lg">
+                    <Video className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">No videos added yet</p>
+                    <Button type="button" variant="outline" size="sm" className="mt-2" onClick={addVideoToEditCourse}>
+                      Add First Video
+                    </Button>
                   </div>
-                ))}
+                ) : (
+                  editFormData.videos.map((video, index) => (
+                    <div key={video.id} className="p-4 border rounded-lg space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium">Video {index + 1}</h4>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeVideoFromEditCourse(video.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-2">
+                          <Label>Session Name</Label>
+                          <Input
+                            value={video.session || ''}
+                            onChange={(e) => {
+                              const updatedVideos = editFormData.videos.map(v =>
+                                v.id === video.id ? { ...v, session: e.target.value } : v
+                              );
+                              setEditFormData({ ...editFormData, videos: updatedVideos });
+                            }}
+                            placeholder="e.g. Introduction"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Video Title</Label>
+                          <Input
+                            value={video.title}
+                            onChange={(e) => {
+                              const updatedVideos = editFormData.videos.map(v =>
+                                v.id === video.id ? { ...v, title: e.target.value } : v
+                              );
+                              setEditFormData({ ...editFormData, videos: updatedVideos });
+                            }}
+                            placeholder="Video title"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Duration</Label>
+                          <Input
+                            value={video.duration}
+                            onChange={(e) => {
+                              const updatedVideos = editFormData.videos.map(v =>
+                                v.id === video.id ? { ...v, duration: e.target.value } : v
+                              );
+                              setEditFormData({ ...editFormData, videos: updatedVideos });
+                            }}
+                            placeholder="e.g. 25:30"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Video Description</Label>
+                        <Textarea
+                          value={video.description}
+                          onChange={(e) => {
+                            const updatedVideos = editFormData.videos.map(v =>
+                              v.id === video.id ? { ...v, description: e.target.value } : v
+                            );
+                            setEditFormData({ ...editFormData, videos: updatedVideos });
+                          }}
+                          placeholder="Video description"
+                          rows={2}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Upload Video File</Label>
+                        <Input
+                          type="file"
+                          accept="video/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              handleEditVideoFileChange(file, index);
+                            }
+                          }}
+                        />
+                        {video.url && !video.file && (
+                          <video
+                            src={video.url}
+                            controls
+                            className="w-full mt-2 rounded-md border border-border"
+                          />
+                        )}
+                        {video.file && (
+                          <div className="space-y-2 mt-2">
+                            <div className="text-xs text-green-600 flex items-center justify-between">
+                              <span>✅ File selected: {video.file.name}</span>
+                              {video.uploadProgress !== undefined && (
+                                <span className="font-medium">{video.uploadProgress}%</span>
+                              )}
+                            </div>
+                            {video.uploadProgress !== undefined && (
+                              <Progress value={video.uploadProgress} className="h-2" />
+                            )}
+                            <span className="text-xs text-gray-500 block">
+                              {video.uploadProgress === undefined
+                                ? "Waiting in queue..."
+                                : video.uploadProgress === 100
+                                  ? "Upload complete!"
+                                  : "Uploading..."}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )))}
               </div>
 
               <div className="flex justify-end space-x-2 pt-4">
