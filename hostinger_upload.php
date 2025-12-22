@@ -1,9 +1,8 @@
 <?php
-// Production Security: Restrict CORS to your frontend domain
-$allowed_origin = "https://sla-frontend-beta.vercel.app"; 
-header("Access-Control-Allow-Origin: $allowed_origin");
+// Production Security: Allow CORS from any origin (necessary for dynamic Vercel preview URLs)
+header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 
 // Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {

@@ -5,5 +5,23 @@
             "destination": "/LMSfrontend",
             "permanent": true
         }
+    ],
+    "rewrites": [
+        {
+            "source": "/api/(.*)",
+            "destination": "https://sla-delta-hazel.vercel.app/api/$1"
+        },
+        {
+            "source": "/admin/(.*)",
+            "destination": "/LMSfrontend/index.html"
+        },
+        {
+            "source": "/courses/(.*)",
+            "destination": "/LMSfrontend/index.html"
+        },
+        {
+            "source": "/((?!LMSfrontend|api).*)",
+            "destination": "/LMSfrontend/index.html"
+        }
     ]
 }
