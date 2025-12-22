@@ -1,18 +1,16 @@
 {
     "version": 2,
-    "builds": [
-        {
-            "src": "vercel_app.py",
-            "use": "@vercel/python",
-            "config": {
-                "runtime": "python3.12"
-            }
+    "functions": {
+        "vercel_app.py": {
+            "runtime": "@vercel/python",
+            "memory": 1024,
+            "maxDuration": 60
         }
-    ],
-    "routes": [
+    },
+    "rewrites": [
         {
-            "src": "/(.*)",
-            "dest": "vercel_app.py"
+            "source": "/(.*)",
+            "destination": "vercel_app.py"
         }
     ]
 }

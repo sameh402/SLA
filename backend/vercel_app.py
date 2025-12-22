@@ -15,14 +15,30 @@ from backend.wsgi import application
 def app(environ, start_response):
     # Run migrations and ensure admins exist
     try:
-        print("🔄 Running migrations and admin setup...")
+        print("🔄 Running startup tasks...")
+        
+        # Check database connectivity
+        from django.db import connections
+        from django.db.utils import OperationalError
+        db_conn = connections['default']
+        try:
+            db_conn.cursor()
+            print("✅ Database connection successful.")
+        except OperationalError as e:
+            print(f"❌ Database connection failed: {e}")
+            # We continue anyway to let Django show the error page if DEBUG=True
+        
+        print("🔄 Running migrations...")
         call_command('migrate', interactive=False)
         
+        print("🔄 Ensuring admins exist...")
         from users.utils import ensure_admins_exist
         ensure_admins_exist()
         print("✅ Startup tasks completed.")
     except Exception as e:
+        import traceback
         print(f"⚠️ Startup task error: {e}")
+        print(traceback.format_exc())
 
-    print("🚀 Vercel App Version: 1.0.6 (Soft Admin Fix)")
+    print("🚀 Vercel App Version: 1.0.7 (Enhanced Logging)")
     return application(environ, start_response)

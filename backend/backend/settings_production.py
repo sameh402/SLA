@@ -11,6 +11,10 @@ from .settings import *
 # Forcing DEBUG=True temporarily to see the actual error page in the browser
 DEBUG = True
 
+# Fix for Vercel redirect loop: Vercel removes trailing slashes, 
+# but Django adds them by default. This causes ERR_TOO_MANY_REDIRECTS.
+APPEND_SLASH = False
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY', default=SECRET_KEY)
 
