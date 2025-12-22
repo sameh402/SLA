@@ -1,4 +1,12 @@
 <?php
+// Increase limits for large video uploads
+@ini_set('upload_max_filesize', '512M');
+@ini_set('post_max_size', '512M');
+@ini_set('max_execution_time', '600');
+@ini_set('max_input_time', '600');
+@ini_set('memory_limit', '512M');
+ignore_user_abort(true); // Continue upload even if connection is lost
+
 // Robust CORS handling for dynamic Vercel preview URLs
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
