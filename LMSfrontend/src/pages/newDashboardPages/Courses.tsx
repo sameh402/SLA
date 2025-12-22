@@ -662,6 +662,109 @@ export default function Courses() {
           </Card>
         ))}
       </div>
+
+      {/* Edit Course Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Course</DialogTitle>
+            <DialogDescription>Update course information and settings</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-title">Course Title</Label>
+              <Input id="edit-title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Enter course title" />
+            </div>
+            <div>
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea id="edit-description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Enter course description" rows={4} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-category">Category</Label>
+                <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                  <SelectTrigger id="edit-category"><SelectValue placeholder="Select category" /></SelectTrigger>
+                  <SelectContent>{categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-price">Price</Label>
+                <Input id="edit-price" type="number" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} placeholder="0.00" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-duration">Duration</Label>
+                <Input id="edit-duration" value={formData.duration} onChange={(e) => setFormData({ ...formData, duration: e.target.value })} placeholder="e.g., 10h 30m" />
+              </div>
+              <div>
+                <Label htmlFor="edit-status">Status</Label>
+                <Select value={formData.status} onValueChange={(value: "active" | "draft") => setFormData({ ...formData, status: value })}>
+                  <SelectTrigger id="edit-status"><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="active">Active</SelectItem><SelectItem value="draft">Draft</SelectItem></SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+              <Button onClick={handleSaveCourse}>Save Changes</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Content Dialog */}
+      <Dialog open={isEditContentDialogOpen} onOpenChange={setIsEditContentDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Course Content</DialogTitle>
+            <DialogDescription>Manage videos for "{contentFormData.title}"</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <Label>Course Videos</Label>
+              {contentFormData.videos.map((video, index) => (
+                <Card key={video.id || index} className="p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Video className="w-4 h-4" />
+                        <span className="font-medium">{video.title}</span>
+                      </div>
+                      {video.description && (<p className="text-sm text-muted-foreground">{video.description}</p>)}
+                      {video.duration && (<div className="flex items-center gap-2 text-sm text-muted-foreground"><Clock className="w-3 h-3" />{video.duration}</div>)}
+                      {video.url && (<a href={video.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline inline-flex items-center gap-1"><Play className="w-3 h-3" />View Video</a>)}
+                    </div>
+                    <Button variant="destructive" size="sm" onClick={async () => {
+                      if (!selectedCourseForContent) return;
+                      try {
+                        await adminDeleteCourseMedia(parseInt(selectedCourseForContent.id, 10), video.id);
+                        setContentFormData({ ...contentFormData, videos: contentFormData.videos.filter((v) => v.id !== video.id) });
+                      } catch (error) {
+                        console.error("Failed to delete video:", error);
+                        alert("Failed to delete video");
+                      }
+                    }}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+              {contentFormData.videos.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                  <Video className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>No videos yet</p>
+                  <p className="text-sm">Add videos when creating or editing the course</p>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button variant="outline" onClick={() => { setIsEditContentDialogOpen(false); setSelectedCourseForContent(null); }}>Close</Button>
+              <Button onClick={handleSaveContent}>Save Changes</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,33 +1,27 @@
 {
     "redirects": [
         {
-            "redirects": [
-                {
-                    "source": "/",
-                    "destination": "/LMSfrontend",
-                    "permanent": true
-                }
-            ],
-            "rewrites": [
-                {
-                    "source": "/api/(.*)",
-                    "destination": "https://sla-delta-hazel.vercel.app/api/$1"
-                },
-                {
-                    "source": "/admin/(.*)",
-                    "destination": "https://sla-delta-hazel.vercel.app/admin/$1"
-                },
-                {
-                    "source": "/static/(.*)",
-                    "destination": "https://sla-delta-hazel.vercel.app/static/$1"
-                },
-                {
-                    "source": "/media/(.*)",
-                    "destination": "https://sla-delta-hazel.vercel.app/media/$1"
-                },
-                {
-                    "source": "/((?!api|admin|static|media).*)",
-                    "destination": "/index.html"
-                }
-            ]
+            "source": "/",
+            "destination": "/LMSfrontend",
+            "permanent": true
         }
+    ],
+    "rewrites": [
+        {
+            "source": "/api/(.*)",
+            "destination": "https://sla-delta-hazel.vercel.app/api/$1"
+        },
+        {
+            "source": "/static/(.*)",
+            "destination": "https://sla-delta-hazel.vercel.app/static/$1"
+        },
+        {
+            "source": "/media/(.*)",
+            "destination": "https://sla-delta-hazel.vercel.app/media/$1"
+        },
+        {
+            "source": "/((?!api|static|media).*)",
+            "destination": "/index.html"
+        }
+    ]
+}

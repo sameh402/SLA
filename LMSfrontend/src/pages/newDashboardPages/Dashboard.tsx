@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { CourseWithVideos, VideoContent, coursesWithContent } from '@/lib/coursesData';
-import { storage } from '@/lib/firebase';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { adminSummary, adminListCourses, adminUpdateCourse, adminCreateCourseMultipart, createCourseMedia, adminDeleteCourseMedia } from '@/api/admin';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -220,7 +218,61 @@ export default function Dashboard() {
   const [certificates, setCertificates] = useState([]);
   const [certificateForm, setCertificateForm] = useState({ student: '', courseId: '', date: '' });
   const [selectedCourseId, setSelectedCourseId] = useState("");
-  const [uploadVideos, setUploadVideos] = useState([{ title: "", description: "", duration: "", file: null, uploadProgress: 0, url: "" }]);
+  const [uploadVideos, setUploadVideos] = useState<{
+    id?: number;
+    title: string;
+    description: string;
+    duration: string;
+    file: any;
+    uploadProgress: number;
+    url: string;
+  }[]>([{ title: "", description: "", duration: "", file: null, uploadProgress: 0, url: "" }]);
+
+  const slugify = (text: string) => {
+    return text
+      .toString()
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/[^\w-]+/g, '')
+      .replace(/--+/g, '-');
+  };
+
+  const uploadWithProgress = (url: string, file: File, courseFolder: string, onProgress: (progress: number) => void): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('course_folder', courseFolder);
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = Math.round((e.loaded / e.total) * 100);
+          onProgress(percentComplete);
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            resolve(response);
+          } catch (err) {
+            reject(new Error('Invalid JSON response from server'));
+          }
+        } else {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        reject(new Error('Network error during upload.'));
+      });
+
+      xhr.open('POST', url);
+      xhr.send(formData);
+    });
+  };
 
   // Fetch all data in parallel for better performance
   useEffect(() => {
@@ -245,31 +297,36 @@ export default function Dashboard() {
     fetchData();
   }, []);
   // Handle video file upload for upload dialog
-  const handleUploadDialogVideoFileChange = (file, index) => {
-    if (!file) return;
-    const videoName = `${Date.now()}_${file.name}`;
-    const storageRef = ref(storage, `videos/${videoName}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
+  const handleUploadDialogVideoFileChange = async (file: File, index: number) => {
+    if (!file || !selectedCourseId) {
+      if (!selectedCourseId) alert("Please select a course first");
+      return;
+    }
 
-    uploadTask.on('state_changed',
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        const updatedVideos = [...uploadVideos];
-        updatedVideos[index].uploadProgress = progress;
-        setUploadVideos(updatedVideos);
-      },
-      (error) => {
-        alert('Video upload failed: ' + error.message);
-      },
-      () => {
-        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+    const selectedCourse = apiCourses.find(c => c.id.toString() === selectedCourseId);
+    const courseFolder = selectedCourse ? slugify(selectedCourse.title) : 'general';
+
+    try {
+      const uploadResult = await uploadWithProgress(
+        import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/hostinger_upload.php',
+        file,
+        courseFolder,
+        (progress) => {
           const updatedVideos = [...uploadVideos];
-          updatedVideos[index].url = downloadURL;
-          updatedVideos[index].uploadProgress = 100;
+          updatedVideos[index].uploadProgress = progress;
           setUploadVideos(updatedVideos);
-        });
+        }
+      );
+
+      if (uploadResult.status === 'success') {
+        const updatedVideos = [...uploadVideos];
+        updatedVideos[index].url = uploadResult.url;
+        updatedVideos[index].uploadProgress = 100;
+        setUploadVideos(updatedVideos);
       }
-    );
+    } catch (error: any) {
+      alert('Video upload failed: ' + error.message);
+    }
   };
 
   const addUploadDialogVideo = () => {
@@ -360,31 +417,31 @@ export default function Dashboard() {
   });
 
   // Handle video file upload for edit dialog
-  const handleEditVideoFileChange = (file, index) => {
+  const handleEditVideoFileChange = async (file: File, index: number) => {
     if (!file) return;
-    const videoName = `${Date.now()}_${file.name}`;
-    const storageRef = ref(storage, `videos/${videoName}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
+    const courseFolder = editingCourse ? slugify(editingCourse.title) : 'general';
 
-    uploadTask.on('state_changed',
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        const updatedVideos = [...editFormData.videos];
-        updatedVideos[index].uploadProgress = progress;
-        setEditFormData({ ...editFormData, videos: updatedVideos });
-      },
-      (error) => {
-        alert('Video upload failed: ' + error.message);
-      },
-      () => {
-        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+    try {
+      const uploadResult = await uploadWithProgress(
+        import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/hostinger_upload.php',
+        file,
+        courseFolder,
+        (progress) => {
           const updatedVideos = [...editFormData.videos];
-          updatedVideos[index].url = downloadURL;
-          updatedVideos[index].uploadProgress = 100;
+          updatedVideos[index].uploadProgress = progress;
           setEditFormData({ ...editFormData, videos: updatedVideos });
-        });
+        }
+      );
+
+      if (uploadResult.status === 'success') {
+        const updatedVideos = [...editFormData.videos];
+        updatedVideos[index].url = uploadResult.url;
+        updatedVideos[index].uploadProgress = 100;
+        setEditFormData({ ...editFormData, videos: updatedVideos });
       }
-    );
+    } catch (error: any) {
+      alert('Video upload failed: ' + error.message);
+    }
   };
 
   const openEditDialog = (course: CourseWithVideos) => {
@@ -567,31 +624,31 @@ export default function Dashboard() {
   };
 
   // Handle video file upload
-  const handleVideoFileChange = (file, index) => {
+  const handleVideoFileChange = async (file: File, index: number) => {
     if (!file) return;
-    const videoName = `${Date.now()}_${file.name}`;
-    const storageRef = ref(storage, `videos/${videoName}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
+    const courseFolder = newCourse.title ? slugify(newCourse.title) : 'general';
 
-    uploadTask.on('state_changed',
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        const updatedVideos = [...newCourse.videos];
-        updatedVideos[index].uploadProgress = progress;
-        setNewCourse({ ...newCourse, videos: updatedVideos });
-      },
-      (error) => {
-        alert('Video upload failed: ' + error.message);
-      },
-      () => {
-        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+    try {
+      const uploadResult = await uploadWithProgress(
+        import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/hostinger_upload.php',
+        file,
+        courseFolder,
+        (progress) => {
           const updatedVideos = [...newCourse.videos];
-          updatedVideos[index].url = downloadURL;
-          updatedVideos[index].uploadProgress = 100;
+          updatedVideos[index].uploadProgress = progress;
           setNewCourse({ ...newCourse, videos: updatedVideos });
-        });
+        }
+      );
+
+      if (uploadResult.status === 'success') {
+        const updatedVideos = [...newCourse.videos];
+        updatedVideos[index].url = uploadResult.url;
+        updatedVideos[index].uploadProgress = 100;
+        setNewCourse({ ...newCourse, videos: updatedVideos });
       }
-    );
+    } catch (error: any) {
+      alert('Video upload failed: ' + error.message);
+    }
   };
 
   const addVideoToEditCourse = () => {

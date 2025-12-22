@@ -69,7 +69,7 @@ export default function Layout({ children }: LayoutProps) {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-8">
               <img
-                src="https://smartonlinelearningedu.com/static/media/WhatsApp%20Image%202025-05-26%20at%2000.38.02_5277dbf4.f388d82bb2a41fa81dbf.jpg"
+                src="/mainlogo.png"
                 alt="Logo"
                 className="h-12 w-12 object-cover rounded-full"
               />
