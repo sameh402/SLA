@@ -1,5 +1,4 @@
 {
-    "version": 2,
     "functions": {
         "vercel_app.py": {
             "runtime": "@vercel/python",
