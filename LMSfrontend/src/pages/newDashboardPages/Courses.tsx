@@ -534,7 +534,29 @@ export default function Courses() {
 
               formData.append('instructors', JSON.stringify(newCourse.instructors.filter(i => i.trim() !== '')));
 
-              if (newCourse.thumbnailFile) formData.append('thumbnail', newCourse.thumbnailFile);
+              // Upload thumbnail to Hostinger if provided
+              if (newCourse.thumbnailFile) {
+                try {
+                  const thumbFormData = new FormData();
+                  thumbFormData.append('file', newCourse.thumbnailFile);
+                  thumbFormData.append('course_folder', `${slugify(newCourse.title)}/thumbnails`);
+
+                  const thumbUploadResult = await fetch(
+                    import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/hostinger_upload.php',
+                    {
+                      method: 'POST',
+                      body: thumbFormData,
+                    }
+                  );
+
+                  const thumbResult = await thumbUploadResult.json();
+                  if (thumbResult.status === 'success') {
+                    formData.append('thumbnail', thumbResult.url);
+                  }
+                } catch (err) {
+                  console.error('Thumbnail upload failed:', err);
+                }
+              }
 
               const response = await adminCreateCourseMultipart(formData);
               const createdCourse = response.data;

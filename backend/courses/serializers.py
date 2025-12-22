@@ -58,7 +58,7 @@ class CourseSerializer(serializers.ModelSerializer):
     created_by = serializers.ReadOnlyField(source='created_by.id')
     videos_count = serializers.SerializerMethodField()
     media = CourseMediaSerializer(many=True, read_only=True)
-    thumbnail = serializers.ImageField(required=False, allow_null=True)
+    thumbnail = serializers.URLField(required=False, allow_null=True)
 
     class Meta:
         model = Course
