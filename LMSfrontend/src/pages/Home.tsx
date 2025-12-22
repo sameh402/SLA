@@ -52,49 +52,49 @@ export default function Home() {
   const parallaxOffset = useParallax(0.3);
   const isEgyptUser = useStore((state) => state.isEgyptUser);
   const { categories, loading: coursesLoading, error: coursesError, getTotalCourseCount, getTotalStudentCount } = useCourses();
-  
+
   // Fetch Django courses for the courses section
   const { data: djangoCoursesData, isLoading: djangoCoursesLoading, error: djangoCoursesError } = useDjangoCourses({
     status: 'published',
     ordering: '-created_at'
   });
 
-const heroSlides = [
-  {
-    title: t("home.hero.slide1.title"),
-    subtitle: t("home.hero.slide1.subtitle"),
-    description: t("home.hero.slide1.description"),
-    image: "/src/data/1.png", // Replace with your actual image filename
-  },
-  {
-    title: t("home.hero.slide2.title"),
-    subtitle: t("home.hero.slide2.subtitle"),
-    description: t("home.hero.slide2.description"),
-    image: "/src/data/2.png", // Replace with your actual image filename
-  },
-  {
-    title: t("home.hero.slide3.title"),
-    subtitle: t("home.hero.slide3.subtitle"),
-    description: t("home.hero.slide3.description"),
-    image: "/src/data/3.png", // Replace with your actual image filename
-  },
-  {
-    title: t("home.hero.slide4.title"),
-    subtitle: t("home.hero.slide4.subtitle"),
-    description: t("home.hero.slide4.description"),
-    image: "/src/data/4.png", // Replace with your actual image filename
-  },
-  {
-    title: t("home.hero.slide5.title"),
-    subtitle: t("home.hero.slide5.subtitle"),
-    description: t("home.hero.slide5.description"),
-    image: "/src/data/5.png", // Replace with your actual image filename
-  },
-];
+  const heroSlides = [
+    {
+      title: t("home.hero.slide1.title"),
+      subtitle: t("home.hero.slide1.subtitle"),
+      description: t("home.hero.slide1.description"),
+      image: "/data/1.png", // Replace with your actual image filename
+    },
+    {
+      title: t("home.hero.slide2.title"),
+      subtitle: t("home.hero.slide2.subtitle"),
+      description: t("home.hero.slide2.description"),
+      image: "/data/2.png", // Replace with your actual image filename
+    },
+    {
+      title: t("home.hero.slide3.title"),
+      subtitle: t("home.hero.slide3.subtitle"),
+      description: t("home.hero.slide3.description"),
+      image: "/data/3.png", // Replace with your actual image filename
+    },
+    {
+      title: t("home.hero.slide4.title"),
+      subtitle: t("home.hero.slide4.subtitle"),
+      description: t("home.hero.slide4.description"),
+      image: "/data/4.png", // Replace with your actual image filename
+    },
+    {
+      title: t("home.hero.slide5.title"),
+      subtitle: t("home.hero.slide5.subtitle"),
+      description: t("home.hero.slide5.description"),
+      image: "/data/5.png", // Replace with your actual image filename
+    },
+  ];
 
   // Use Django courses to create categories
   const djangoCourseCategories = djangoCoursesData?.results ? getCourseCategories(djangoCoursesData.results) : [];
-  
+
   // Create category display data from Django courses
   const courseCategories = djangoCourseCategories.map((category, index) => ({
     id: index + 1,
@@ -105,7 +105,7 @@ const heroSlides = [
     courseCount: category.courseCount,
     category: category.name.toLowerCase(),
   }));
-  
+
   // Helper functions for category display
   function getCategoryDescription(categoryName: string) {
     const descriptions: { [key: string]: string } = {
@@ -119,7 +119,7 @@ const heroSlides = [
     };
     return descriptions[categoryName] || descriptions['General'];
   }
-  
+
   function getCategoryIcon(categoryName: string) {
     const icons: { [key: string]: string } = {
       'Languages': '🌍',
@@ -132,7 +132,7 @@ const heroSlides = [
     };
     return icons[categoryName] || icons['General'];
   }
-  
+
   function getCategoryGradient(categoryName: string) {
     const gradients: { [key: string]: string } = {
       'Languages': 'bg-gradient-to-br from-blue-500 to-indigo-600',
@@ -145,7 +145,7 @@ const heroSlides = [
     };
     return gradients[categoryName] || gradients['General'];
   }
-  
+
   // Use Firebase categories as fallback if Django courses are not available
   const firebaseCourseCategories = categories.map((category, index) => ({
     id: index + 1,
@@ -156,32 +156,32 @@ const heroSlides = [
     courseCount: category.courseCount,
     category: category.id,
   }));
-  
+
   // Use Django categories if available, otherwise fallback to Firebase
   const displayCategories = courseCategories.length > 0 ? courseCategories : firebaseCourseCategories;
 
   // Dynamic stats - use Django course count if available, otherwise Firebase
   const totalCourses = djangoCoursesData?.count || getTotalCourseCount();
   const stats = [
-    { 
-      label: t("home.stats.students"), 
-      value: `${(getTotalStudentCount() / 1000).toFixed(0)}k+`, 
-      icon: Users 
+    {
+      label: t("home.stats.students"),
+      value: `${(getTotalStudentCount() / 1000).toFixed(0)}k+`,
+      icon: Users
     },
-    { 
-      label: t("home.stats.courses"), 
-      value: `${totalCourses}+`, 
-      icon: BookOpen 
+    {
+      label: t("home.stats.courses"),
+      value: `${totalCourses}+`,
+      icon: BookOpen
     },
-    { 
-      label: t("home.stats.instructors"), 
-      value: "20+", 
-      icon: Award 
+    {
+      label: t("home.stats.instructors"),
+      value: "20+",
+      icon: Award
     },
-    { 
-      label: t("home.stats.completion"), 
-      value: "99%", 
-      icon: CheckCircle 
+    {
+      label: t("home.stats.completion"),
+      value: "99%",
+      icon: CheckCircle
     },
   ];
 
@@ -359,7 +359,7 @@ const heroSlides = [
             itemClassName="text-center group"
             delay={150}
           >
-            {            [
+            {[
               {
                 icon: Users,
                 value: Math.floor(getTotalStudentCount() / 1000),
@@ -461,14 +461,14 @@ const heroSlides = [
                 </p>
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">
-                    {language === "ar" 
+                    {language === "ar"
                       ? "تحقق من إعدادات Firebase أو اتصل بالدعم الفني."
                       : "Please check Firebase settings or contact technical support."
                     }
                   </p>
-                  <Button 
-                    onClick={() => window.location.reload()} 
-                    variant="outline" 
+                  <Button
+                    onClick={() => window.location.reload()}
+                    variant="outline"
                     className="mt-4"
                   >
                     {t("common.retry")}
@@ -483,70 +483,70 @@ const heroSlides = [
               delay={200}
             >
               {displayCategories.map((category) => (
-              <MagneticButton key={category.id} intensity={10}>
-                <Link to={`/courses?category=${category.category}`}>
-                  <Card className="category-card card-hover bg-card/80 backdrop-blur-sm border-2 border-transparent hover:border-primary/20 overflow-hidden h-full group transition-all duration-300 cursor-pointer">
-                    <div
-                      className={cn(
-                        "h-32 relative overflow-hidden",
-                        category.gradient,
-                      )}
-                    >
-                      {/* Category Icon */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="text-6xl filter drop-shadow-lg group-hover:scale-110 transition-transform duration-300">
-                          {category.icon}
+                <MagneticButton key={category.id} intensity={10}>
+                  <Link to={`/courses?category=${category.category}`}>
+                    <Card className="category-card card-hover bg-card/80 backdrop-blur-sm border-2 border-transparent hover:border-primary/20 overflow-hidden h-full group transition-all duration-300 cursor-pointer">
+                      <div
+                        className={cn(
+                          "h-32 relative overflow-hidden",
+                          category.gradient,
+                        )}
+                      >
+                        {/* Category Icon */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="text-6xl filter drop-shadow-lg group-hover:scale-110 transition-transform duration-300">
+                            {category.icon}
+                          </div>
                         </div>
+
+                        {/* Gradient overlay with animation */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent group-hover:from-black/60 transition-all duration-700" />
+
+                        {/* Course count badge */}
+                        <FloatingElement className="absolute top-4 right-4 z-10">
+                          <Badge className="bg-white/95 text-gray-800 shadow-lg backdrop-blur-sm px-3 py-1">
+                            <BookOpen className="mr-1 h-3 w-3" />
+                            {category.courseCount} courses
+                          </Badge>
+                        </FloatingElement>
+
+                        {/* Animated geometric shapes */}
+                        <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/10 rounded-full transform -translate-x-8 translate-y-8 group-hover:-translate-x-4 group-hover:translate-y-4 transition-transform duration-700" />
+                        <div className="absolute top-0 right-0 w-12 h-12 bg-white/5 rounded-full transform translate-x-6 -translate-y-6 group-hover:translate-x-3 group-hover:-translate-y-3 transition-transform duration-700" />
+
+                        {/* Hover overlay effect */}
+                        <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                       </div>
 
-                      {/* Gradient overlay with animation */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent group-hover:from-black/60 transition-all duration-700" />
+                      <CardHeader className="pb-4 relative">
+                        <CardTitle className="text-xl font-bold group-hover:text-primary transition-colors duration-300 text-reveal">
+                          {category.title}
+                        </CardTitle>
+                      </CardHeader>
 
-                      {/* Course count badge */}
-                      <FloatingElement className="absolute top-4 right-4 z-10">
-                        <Badge className="bg-white/95 text-gray-800 shadow-lg backdrop-blur-sm px-3 py-1">
-                          <BookOpen className="mr-1 h-3 w-3" />
-                          {category.courseCount} courses
-                        </Badge>
-                      </FloatingElement>
+                      <CardContent className="space-y-4 flex-1 flex flex-col">
+                        <p className="text-muted-foreground leading-relaxed flex-1 text-sm">
+                          {category.description}
+                        </p>
 
-                      {/* Animated geometric shapes */}
-                      <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/10 rounded-full transform -translate-x-8 translate-y-8 group-hover:-translate-x-4 group-hover:translate-y-4 transition-transform duration-700" />
-                      <div className="absolute top-0 right-0 w-12 h-12 bg-white/5 rounded-full transform translate-x-6 -translate-y-6 group-hover:translate-x-3 group-hover:-translate-y-3 transition-transform duration-700" />
-
-                      {/* Hover overlay effect */}
-                      <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    </div>
-
-                    <CardHeader className="pb-4 relative">
-                      <CardTitle className="text-xl font-bold group-hover:text-primary transition-colors duration-300 text-reveal">
-                        {category.title}
-                      </CardTitle>
-                    </CardHeader>
-
-                    <CardContent className="space-y-4 flex-1 flex flex-col">
-                      <p className="text-muted-foreground leading-relaxed flex-1 text-sm">
-                        {category.description}
-                      </p>
-
-                      <div className="flex items-center justify-between pt-4 border-t border-border/50">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground group-hover:text-primary transition-colors">
-                          <BookOpen className="h-4 w-4" />
-                          <span className="font-medium">
-                            {category.courseCount} Courses
-                          </span>
+                        <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground group-hover:text-primary transition-colors">
+                            <BookOpen className="h-4 w-4" />
+                            <span className="font-medium">
+                              {category.courseCount} Courses
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 text-primary group-hover:translate-x-1 transition-transform duration-300">
+                            <span className="text-sm font-medium">Explore</span>
+                            <Play className="h-4 w-4 fill-current" />
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1 text-primary group-hover:translate-x-1 transition-transform duration-300">
-                          <span className="text-sm font-medium">Explore</span>
-                          <Play className="h-4 w-4 fill-current" />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              </MagneticButton>
-            ))}
-          </StaggeredList>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </MagneticButton>
+              ))}
+            </StaggeredList>
           )}
 
           <AnimatedSection

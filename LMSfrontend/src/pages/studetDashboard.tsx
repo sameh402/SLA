@@ -1,7 +1,7 @@
 
 
 // src/pages/Index.tsx
-import React, { useState , useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ export default function Index() {
   const { enrollments, refreshEnrollments } = useEnrollments();
   const { t, language } = useI18n();
   const [activeTab, setActiveTab] = useState<"all" | "completed">("all");
+  const [isPriceLoading, setIsPriceLoading] = useState(true);
   const [isEgyptUser, setIsEgyptUser] = useState<boolean | null>(null);
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
 
@@ -60,24 +61,26 @@ export default function Index() {
         console.error("💥 Exchange rate fetch failed:", err);
         setExchangeRate(50);
       } finally {
-        setLoading(false);
+        setIsPriceLoading(false);
       }
     };
     fetchRate();
   }, []);
 
   // 3️⃣ Compute display price
-  const getDisplayPrice = (priceUSD: number) => {
-    if (loading || isEgyptUser === null) return "Loading...";
+  const getDisplayPrice = (priceUSD: any) => {
+    if (isPriceLoading || isEgyptUser === null) return "Loading...";
     if (isEgyptUser && exchangeRate) {
-      const egpPrice = priceUSD * exchangeRate;
+      const numericPrice = typeof priceUSD === 'string' ? parseFloat(priceUSD) : Number(priceUSD);
+      const egpPrice = numericPrice * exchangeRate;
       const label = language === "ar" ? "جم" : "EGP";
       return `${Math.round(egpPrice).toLocaleString()} ${label}`;
     }
-    return `$${priceUSD.toFixed(2)}`
+    const numericPrice = typeof priceUSD === 'string' ? parseFloat(priceUSD) : Number(priceUSD);
+    return `$${numericPrice.toFixed(2)}`;
   };
 
- 
+
 
 
 
@@ -131,7 +134,7 @@ export default function Index() {
               {language === "ar" ? "لا توجد دورات مسجلة" : "No Courses Enrolled"}
             </h2>
             <p className="text-muted-foreground mb-6">
-              {language === "ar" 
+              {language === "ar"
                 ? "لم تسجل في أي دورة بعد. استكشف متجر الدورات للعثور على الدورة المثالية لك."
                 : "You haven't enrolled in any courses yet. Explore our course store to find the perfect course for you."}
             </p>
@@ -243,7 +246,7 @@ export default function Index() {
         <h3 className="text-lg font-semibold">
           {language === "ar" ? "دوراتي" : "My Courses"} ({enrollments.length})
         </h3>
-        <Button 
+        <Button
           onClick={() => {
             console.log('🔄 Manual refresh triggered');
             console.log('👤 Current user:', user);
@@ -295,7 +298,7 @@ export default function Index() {
                 {language === "ar" ? "دورة" : "Course"}
               </div>
               <div className="absolute bottom-3 left-3 bg-primary/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs font-medium text-primary-foreground">
-                {getDisplayPrice(enrollment.coursePrice, language)}
+                {getDisplayPrice(enrollment.coursePrice)}
               </div>
             </div>
 
@@ -321,11 +324,11 @@ export default function Index() {
                     {Math.round(enrollment.progress)}%
                   </span>
                 </div>
-                
+
                 {/* Progress Bar */}
                 <div className="w-full bg-muted rounded-full h-2">
-                  <div 
-                    className="bg-primary h-2 rounded-full transition-all duration-300" 
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all duration-300"
                     style={{ width: `${enrollment.progress}%` }}
                   />
                 </div>
