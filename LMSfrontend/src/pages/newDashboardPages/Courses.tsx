@@ -571,10 +571,12 @@ export default function Courses() {
                   const fullFolderPath = `${courseFolder}/${sessionFolder}`;
 
                   try {
-                    const fileToUpload = await compressVideo(video.file);
+                    const fileToUpload = await compressVideo(video.file, (msg) => {
+                      console.log(`Video ${video.id} compression: ${msg}`);
+                    });
 
                     const uploadResult = await uploadWithProgress(
-                      import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/upload.php',
+                      import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/hostinger_upload.php',
                       fileToUpload as File,
                       fullFolderPath,
                       (progress) => {
