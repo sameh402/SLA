@@ -19,8 +19,3 @@ export interface BackendCourse {
 export const listCourses = (params?: Record<string, any>) => api.get<BackendCourse[]>("/api/courses/", { params });
 export const getCourse = (id: number) => api.get<BackendCourse>(`/api/courses/${id}/`);
 
-
-export async function fetchUserCourse(courseId: number) {
-  const response = await api.get(`/api/courses/user-course/${courseId}/`);
-  return response.data;
-}

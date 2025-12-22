@@ -448,9 +448,9 @@ export default function CourseDetails() {
                         ))}
                       </div>
                       <span className="font-medium">{course.rating.toFixed(1)}</span>
-                      {/* <span className="text-muted-foreground">
+                      <span className="text-muted-foreground">
                         ({course.reviewCount.toLocaleString()} reviews)
-                      </span> */}
+                      </span>
                     </div>
                     
                     <div className="flex items-center gap-2 text-muted-foreground">
@@ -463,10 +463,10 @@ export default function CourseDetails() {
                       <span>{course.duration}</span>
                     </div>
                     
-                    {/* <div className="flex items-center gap-2 text-muted-foreground">
+                    <div className="flex items-center gap-2 text-muted-foreground">
                       <Calendar className="h-5 w-5" />
                       <span>Updated {course.lastUpdated}</span>
-                    </div> */}
+                    </div>
                   </div>
                 </AnimatedSection>
               </div>
@@ -569,10 +569,11 @@ export default function CourseDetails() {
               <div className="lg:col-span-2">
                 <AnimatedSection animation="fade-up" delay={400}>
                   <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="grid w-full grid-cols-3 mb-8">
+                    <TabsList className="grid w-full grid-cols-4 mb-8">
                       <TabsTrigger value="overview">Overview</TabsTrigger>
                       <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
                       <TabsTrigger value="instructor">Instructor</TabsTrigger>
+                      <TabsTrigger value="reviews">Reviews</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="overview" className="space-y-8">
@@ -708,7 +709,7 @@ export default function CourseDetails() {
                       </Card>
                     </TabsContent>
 
-                    {/* <TabsContent value="reviews" className="space-y-6">
+                    <TabsContent value="reviews" className="space-y-6">
                       <Card>
                         <CardHeader>
                           <CardTitle>Student Reviews</CardTitle>
@@ -770,7 +771,7 @@ export default function CourseDetails() {
                           </div>
                         </CardContent>
                       </Card>
-                    </TabsContent> */}
+                    </TabsContent>
                   </Tabs>
                 </AnimatedSection>
               </div>
@@ -779,7 +780,7 @@ export default function CourseDetails() {
               <div className="lg:col-span-1">
                 <div className="space-y-6">
                   {/* Related Courses */}
-                  {/* <AnimatedSection animation="fade-up" delay={600}>
+                  <AnimatedSection animation="fade-up" delay={600}>
                     <Card>
                       <CardHeader>
                         <CardTitle>Related Courses</CardTitle>
@@ -805,7 +806,7 @@ export default function CourseDetails() {
                         </div>
                       </CardContent>
                     </Card>
-                  </AnimatedSection> */}
+                  </AnimatedSection>
                 </div>
               </div>
             </div>

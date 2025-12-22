@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useI18n } from "@/lib/i18n";
-import { Lock, Mail, Eye, EyeOff } from "lucide-react";
+import { Lock, Mail } from "lucide-react";
 import { Navigation } from "@/components/Navigation";
 import { useToast } from "@/hooks/use-toast";
 import { login as loginApi } from "@/api/auth";
@@ -16,45 +16,22 @@ export function LoginPage() {
 	const { t, language } = useI18n();
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
-	const [showPassword, setShowPassword] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const navigate = useNavigate();
 	const { toast } = useToast();
 	const setIsLogIn = useStore((s) => s.setIsLogIn);
 	const { login } = useAuth();
-	const [errors, setErrors] = useState({ email: "", password: "" });
-
-	const validateEmail = (val: string) => {
-		if (!val) return language === "ar" ? "البريد الإلكتروني مطلوب" : "Email is required";
-		if (!/\S+@\S+\.\S+/.test(val)) return language === "ar" ? "بريد إلكتروني غير صالح" : "Invalid email format";
-		return "";
-	};
-
-	const validatePassword = (val: string) => {
-		if (!val) return language === "ar" ? "كلمة المرور مطلوبة" : "Password is required";
-		return "";
-	};
-
-	const handleEmailChange = (val: string) => {
-		setEmail(val);
-		setErrors(prev => ({ ...prev, email: validateEmail(val) }));
-	};
-
-	const handlePasswordChange = (val: string) => {
-		setPassword(val);
-		setErrors(prev => ({ ...prev, password: validatePassword(val) }));
-	};
 
 	async function handleLogin(e: React.FormEvent) {
 		e.preventDefault();
-		const emailErr = validateEmail(email);
-		const passErr = validatePassword(password);
-
-		if (emailErr || passErr) {
-			setErrors({ email: emailErr, password: passErr });
+		if (!email || !password) {
+			toast({
+				title: t("login.error"),
+				description: language === "ar" ? "يرجى إدخال البريد الإلكتروني وكلمة المرور" : "Please enter email and password",
+				variant: "destructive",
+			});
 			return;
 		}
-
 		setIsSubmitting(true);
 		try {
 			// Use the auth context login function
@@ -64,7 +41,7 @@ export function LoginPage() {
 				title: t("login.success"),
 				description: language === "ar" ? "تم تسجيل الدخول بنجاح" : "Login successful",
 			});
-
+			
 			// Redirect based on user role - this will be handled by the routing system
 			// The ProtectedRoute and RoleBasedRoute components will handle the redirection
 			navigate("/dashboard", { replace: true });
@@ -108,16 +85,8 @@ export function LoginPage() {
 								</Label>
 								<div className="relative">
 									<Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-									<Input
-										id="email"
-										type="email"
-										placeholder={language === "ar" ? "student@example.com" : "student@example.com"}
-										className={`pl-10 border-border bg-background text-foreground placeholder:text-muted-foreground ${errors.email ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-										value={email}
-										onChange={(e) => handleEmailChange(e.target.value)}
-									/>
+									<Input id="email" type="email" placeholder={language === "ar" ? "student@example.com" : "student@example.com"} className="pl-10 border-border bg-background text-foreground placeholder:text-muted-foreground" value={email} onChange={(e) => setEmail(e.target.value)} />
 								</div>
-								{errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
 							</div>
 							<div className="space-y-2">
 								<Label htmlFor="password" className="text-foreground">
@@ -125,27 +94,8 @@ export function LoginPage() {
 								</Label>
 								<div className="relative">
 									<Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-									<Input
-										id="password"
-										type={showPassword ? "text" : "password"}
-										placeholder="••••••••"
-										className={`pl-10 pr-10 border-border bg-background text-foreground placeholder:text-muted-foreground ${errors.password ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-										value={password}
-										onChange={(e) => handlePasswordChange(e.target.value)}
-									/>
-									<button
-										type="button"
-										onClick={() => setShowPassword(!showPassword)}
-										className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-									>
-										{showPassword ? (
-											<EyeOff className="h-4 w-4" />
-										) : (
-											<Eye className="h-4 w-4" />
-										)}
-									</button>
+									<Input id="password" type="password" placeholder="••••••••" className="pl-10 border-border bg-background text-foreground placeholder:text-muted-foreground" value={password} onChange={(e) => setPassword(e.target.value)} />
 								</div>
-								{errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
 							</div>
 							<Button type="submit" className="w-full" disabled={isSubmitting}>
 								{isSubmitting ? (language === "ar" ? "جاري الدخول..." : "Signing in...") : (language === "ar" ? "دخول" : "Sign in")}

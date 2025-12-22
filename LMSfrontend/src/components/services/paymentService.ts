@@ -32,7 +32,7 @@ async function detectCurrency(): Promise<string> {
 // 🧾 Create Payment (auto currency)
 export async function createPayment(courseId: number, amount: number) {
   const currency = await detectCurrency();
-  const res = await api.post("/api/payments/", {
+  const res = await api.post("/payments/", {
     course: courseId,
     amount: amount,
     currency: currency, // ✅ auto detected currency
@@ -42,6 +42,6 @@ export async function createPayment(courseId: number, amount: number) {
 
 // 💳 Start Tap Payment
 export async function startTapPayment(paymentId: number) {
-  const res = await api.post(`/api/payments/${paymentId}/pay/`);
+  const res = await api.post(`/payments/${paymentId}/pay/`);
   return res.data;
 }

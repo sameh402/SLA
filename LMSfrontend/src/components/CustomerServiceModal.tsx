@@ -1,20 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  X,
-  Phone,
-  Mail,
-  User,
+import { 
+  X, 
+  Phone, 
+  Mail, 
+  User, 
   MessageSquare,
   Send,
   HeadphonesIcon
 } from "lucide-react";
-import { useAuth } from "@/lib/useAuth";
-import { useI18n } from "@/lib/i18n";
-import api from "@/api/client";
-import { useToast } from "@/hooks/use-toast";
 
 interface CustomerServiceModalProps {
   isOpen: boolean;
@@ -22,22 +18,14 @@ interface CustomerServiceModalProps {
 }
 
 export default function CustomerServiceModal({ isOpen, onClose }: CustomerServiceModalProps) {
-  const { user } = useAuth();
-  const { t, language } = useI18n();
-  const { toast } = useToast();
   const [formData, setFormData] = useState({
-    subject: "",
+    name: "John Smith",
+    email: "john.smith@email.com", 
+    phone: "+1 (555) 123-4567",
     message: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      setIsSubmitted(false);
-      setFormData({ subject: "", message: "" });
-    }
-  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -51,60 +39,43 @@ export default function CustomerServiceModal({ isOpen, onClose }: CustomerServic
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.subject || !formData.message) return;
-
     setIsSubmitting(true);
-    try {
-      await api.post("/api/support/tickets/", {
-        subject: formData.subject,
-        message: formData.message
-      });
-      setIsSubmitted(true);
-      toast({
-        title: language === "ar" ? "تم الإرسال" : "Message Sent",
-        description: language === "ar" ? "تم إرسال رسالتك بنجاح" : "Your message has been sent successfully",
-      });
-
-      setTimeout(() => {
-        onClose();
-      }, 3000);
-    } catch (error) {
-      console.error("Support ticket error:", error);
-      toast({
-        title: language === "ar" ? "خطأ" : "Error",
-        description: language === "ar" ? "فشل في إرسال الرسالة" : "Failed to send message",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    setIsSubmitting(false);
+    setIsSubmitted(true);
+    
+    // Reset form after 3 seconds and close modal
+    setTimeout(() => {
+      setIsSubmitted(false);
+      setFormData(prev => ({ ...prev, message: "" }));
+      onClose();
+    }, 3000);
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <CardHeader className="bg-gradient-to-r from-primary/5 to-blue-600/5 border-b border-border">
+        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-200">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3 gap-3">
-              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                <HeadphonesIcon className="w-6 h-6 text-primary" />
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <HeadphonesIcon className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <CardTitle className="text-xl text-foreground">
-                  {language === "ar" ? "خدمة العملاء" : "Customer Service"}
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  {language === "ar" ? "نحن هنا لمساعدتك في أي أسئلة أو استفسارات" : "We're here to help you with any questions or concerns"}
-                </p>
+                <CardTitle className="text-xl text-slate-900">Customer Service</CardTitle>
+                <p className="text-sm text-slate-600">We're here to help you with any questions or concerns</p>
               </div>
             </div>
-
+            
             <Button
               variant="ghost"
               size="sm"
               onClick={onClose}
-              className="text-muted-foreground hover:text-foreground"
+              className="text-slate-500 hover:text-slate-700"
             >
               <X className="w-5 h-5" />
             </Button>
@@ -118,99 +89,142 @@ export default function CustomerServiceModal({ isOpen, onClose }: CustomerServic
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Send className="w-8 h-8 text-green-600" />
               </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">
-                {language === "ar" ? "تم إرسال الرسالة بنجاح!" : "Message Sent Successfully!"}
-              </h3>
-              <p className="text-muted-foreground mb-4">
-                {language === "ar"
-                  ? "شكراً لتواصلك معنا. سيرد عليك فريق الدعم في أقرب وقت ممكن."
-                  : "Thank you for contacting us. Our support team will get back to you as soon as possible."}
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">Message Sent Successfully!</h3>
+              <p className="text-slate-600 mb-4">
+                Thank you for contacting us. Our support team will get back to you within 24 hours.
               </p>
+              <Badge className="bg-green-100 text-green-800">
+                Ticket #CS-{Date.now().toString().slice(-6)}
+              </Badge>
             </div>
           ) : (
             /* Contact Form */
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* User Info (Read Only) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-lg border border-border">
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{user?.email}</span>
+              {/* Contact Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">Your Information</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      <User className="w-4 h-4 inline mr-2" />
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      <Mail className="w-4 h-4 inline mr-2" />
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{user?.email}</span>
+                
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    <Phone className="w-4 h-4 inline mr-2" />
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    {language === "ar" ? "الموضوع" : "Subject"}
-                  </label>
-                  <input
-                    type="text"
-                    name="subject"
-                    value={formData.subject}
-                    onChange={handleInputChange}
-                    placeholder={language === "ar" ? "ما هو موضوع استفسارك؟" : "What is your inquiry about?"}
-                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">
-                    <MessageSquare className="w-4 h-4 inline mr-2" />
-                    {language === "ar" ? "رسالتك" : "Your Message"}
-                  </label>
-                  <textarea
-                    name="message"
-                    value={formData.message}
-                    onChange={handleInputChange}
-                    rows={6}
-                    placeholder={language === "ar" ? "يرجى وصف سؤالك أو مشكلتك بالتفصيل..." : "Please describe your question or issue in detail..."}
-                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary resize-none"
-                    required
-                  />
-                </div>
+              {/* Message */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <MessageSquare className="w-4 h-4 inline mr-2" />
+                  Your Message
+                </label>
+                <textarea
+                  name="message"
+                  value={formData.message}
+                  onChange={handleInputChange}
+                  rows={6}
+                  placeholder="Please describe your question or issue in detail. Our support team will be happy to help you..."
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  required
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  {formData.message.length}/1000 characters
+                </p>
               </div>
 
               {/* Submit Button */}
-              <div className="flex items-center justify-between pt-4 border-t border-border">
-                <div className="text-sm text-muted-foreground">
-                  <p>{language === "ar" ? "وقت الرد المتوقع: خلال 24 ساعة" : "Response time: Usually within 24 hours"}</p>
+              <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+                <div className="text-sm text-slate-600">
+                  <p>Response time: <span className="font-medium text-slate-900">Usually within 24 hours</span></p>
                 </div>
-
-                <div className="flex space-x-3 gap-3">
+                
+                <div className="flex space-x-3">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={onClose}
                     disabled={isSubmitting}
                   >
-                    {language === "ar" ? "إلغاء" : "Cancel"}
+                    Cancel
                   </Button>
-
+                  
                   <Button
                     type="submit"
-                    disabled={isSubmitting || !formData.message.trim() || !formData.subject.trim()}
+                    disabled={isSubmitting || !formData.message.trim()}
                     className="min-w-[120px]"
                   >
                     {isSubmitting ? (
                       <div className="flex items-center space-x-2">
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>{language === "ar" ? "جاري الإرسال..." : "Sending..."}</span>
+                        <span>Sending...</span>
                       </div>
                     ) : (
                       <div className="flex items-center space-x-2">
                         <Send className="w-4 h-4" />
-                        <span>{language === "ar" ? "إرسال الرسالة" : "Send Message"}</span>
+                        <span>Send Message</span>
                       </div>
                     )}
                   </Button>
                 </div>
               </div>
             </form>
+          )}
+
+          {/* Quick Contact Info */}
+          {!isSubmitted && (
+            <div className="mt-6 pt-6 border-t border-slate-200">
+              <h4 className="font-medium text-slate-900 mb-3">Other ways to reach us:</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="flex items-center space-x-2 text-slate-600">
+                  <Phone className="w-4 h-4" />
+                  <span>+1 (800) 123-4567</span>
+                </div>
+                <div className="flex items-center space-x-2 text-slate-600">
+                  <Mail className="w-4 h-4" />
+                  <span>support@learnhub.com</span>
+                </div>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

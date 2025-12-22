@@ -24,9 +24,8 @@ export interface CourseDetail {
   description: string;
   status: 'draft' | 'published';
   price: string; // Decimal field comes as string
-  // originalPrice?: number;
   thumbnail: string | null;
-  created_by: string;
+  created_by: number;
   created_at: string;
   updated_at: string;
   media: CourseMedia[];

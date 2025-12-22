@@ -4,14 +4,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { collection, addDoc, getDocs, setDoc, doc} from "firebase/firestore";
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import {
-  Plus,
-  Search,
+import { 
+  Plus, 
+  Search, 
   Edit,
   Trash2,
   Users,
@@ -22,75 +23,31 @@ import {
   MoreHorizontal,
   Video,
   Upload,
+  Image as ImageIcon,
   Play,
-  Save,
-  Loader2
+  Save
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { CourseWithVideos, VideoContent } from '@/lib/coursesData';
-import { adminListCourses, adminCreateCourseMultipart, adminUpdateCourse, adminDeleteCourse, createCourseMedia, adminDeleteCourseMedia, adminGetCourseMedia } from '@/api/admin';
+import { db } from '@/lib/firebase';
+import { CourseWithVideos, VideoContent, coursesWithContent } from '@/lib/coursesData';
+// import { addCourseToDjango, deleteCourseFromDjango, getCoursesFromDjango, updateCourseInDjango } from '@shared/api';
+import  { AddCourseFormValues } from '@/components/newDahsboard/AddCourseDialog';
+import { adminListCourses, adminCreateCourseMultipart, adminUpdateCourse, adminDeleteCourse, createCourseMedia, adminDeleteCourseMedia } from '@/api/admin';
 import AddCourseDialog from '@/components/AddCourseDialog';
-import { Progress } from '@/components/ui/progress';
+import { adminGetCourseMedia } from "@/api/admin"; // 👈 You’ll create this small helper in your API layer
+
+
 
 // Use shared types and data for consistency
 type Course = Omit<CourseWithVideos, 'id' | 'instructor'> & { id: string; instructors: string[] };
+const initialCourses: Course[] = coursesWithContent.map(c => ({
+  ...c,
+  id: c.id.toString(),
+  instructors: c.instructor ? [c.instructor] : [],
+}));
 
-const categories = ["General", "Programming", "Language", "Graphic", "Medical"];
 
-const slugify = (text: string) => {
-  return text
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^\w-]+/g, '')
-    .replace(/--+/g, '-');
-};
-
-const uploadWithProgress = (url: string, file: File, courseFolder: string, onProgress: (progress: number) => void): Promise<any> => {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('course_folder', courseFolder);
-
-    xhr.upload.addEventListener('progress', (e) => {
-      if (e.lengthComputable) {
-        const percentComplete = Math.round((e.loaded / e.total) * 100);
-        onProgress(percentComplete);
-      }
-    });
-
-    xhr.addEventListener('load', () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const response = JSON.parse(xhr.responseText);
-          resolve(response);
-        } catch (err) {
-          reject(new Error('Invalid JSON response from server'));
-        }
-      } else {
-        reject(new Error(`Upload failed with status ${xhr.status}`));
-      }
-    });
-
-    xhr.addEventListener('error', () => {
-      reject(new Error('Network error during upload. Check if the file size exceeds server limits.'));
-    });
-
-    xhr.addEventListener('abort', () => {
-      reject(new Error('Upload aborted'));
-    });
-
-    xhr.open('POST', url);
-    xhr.timeout = 600000; // 10 minutes
-    xhr.ontimeout = () => {
-      reject(new Error('Upload timed out after 10 minutes'));
-    };
-
-    xhr.send(formData);
-  });
-};
+const categories = ["General", "Programming", "Data Science", "AI/ML", "Design", "Business", "Marketing"];
 
 export default function Courses() {
   const navigate = useNavigate();
@@ -99,8 +56,36 @@ export default function Courses() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isAddCourseDialogOpen, setIsAddCourseDialogOpen] = useState(false);
+  const [isEditContentDialogOpen, setIsEditContentDialogOpen] = useState(false);
+  const [selectedCourseForContent, setSelectedCourseForContent] = useState<Course | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [apiCourses, setApiCourses] = useState<any[]>([]);
+
+
+  // ...
+const fetchCourseMedia = async (courseId: number) => {
+  try {
+    const res = await adminGetCourseMedia(courseId);
+    const mediaItems = res.data.results || res.data || [];
+    return mediaItems.map((m: any, idx: number) => ({
+      id: m.id,
+      title: m.title,
+      description: m.media_type || "",
+      url: m.file,
+      duration: m.duration || "",
+      order: m.order || idx + 1,
+    }));
+  } catch (error) {
+    console.error("❌ Failed to fetch media for course:", error);
+    return [];
+  }
+};
+
+
+  // Form state
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -108,100 +93,184 @@ export default function Courses() {
     category: "",
     price: "",
     duration: "",
-    status: "draft" as "active" | "draft",
+    status: "draft" as Course['status'],
     thumbnail: "/placeholder.svg",
-    thumbnailFile: null as File | null,
     videos: [] as VideoContent[]
   });
 
-  const [isEditContentDialogOpen, setIsEditContentDialogOpen] = useState(false);
-  const [selectedCourseForContent, setSelectedCourseForContent] = useState<Course | null>(null);
+  // Content editing state
   const [contentFormData, setContentFormData] = useState({
     title: "",
     description: "",
-    videos: [] as VideoContent[],
+    videos: [] as VideoContent[]
   });
 
-  const filteredCourses = courses.filter((course) => {
-    const matchesSearch =
-      course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.instructors.some((i) => i.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesStatus = statusFilter === "all" || course.status === statusFilter;
-    const matchesCategory = categoryFilter === "all" || course.category === categoryFilter;
-    return matchesSearch && matchesStatus && matchesCategory;
-  });
+  // const filteredCourses = courses.filter(course => {
+  //   const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  //                        course.instructors.some(i => i.toLowerCase().includes(searchTerm.toLowerCase()));
+  //   const matchesStatus = statusFilter === "all" || course.status === statusFilter;
+  //   const matchesCategory = categoryFilter === "all" || course.category === categoryFilter;
+    
+  //   return matchesSearch && matchesStatus && matchesCategory;
+  // });
+const filteredCourses = courses.filter((course) => {
+  const matchesSearch =
+    course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    course.instructors.some((i) =>
+      i.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
-  const fetchCourseMedia = async (courseId: number) => {
-    try {
-      const res = await adminGetCourseMedia(courseId);
-      return (res.data || []).map((m: any, idx: number) => ({
-        id: m.id,
-        title: m.title,
-        session: m.session || "",
-        description: m.description || "",
-        url: m.file,
-        duration: m.duration || "",
-        order: m.order || idx + 1,
-      }));
-    } catch (error) {
-      console.error("Failed to fetch course media:", error);
-      return [];
-    }
+  const matchesStatus =
+    statusFilter === "all" ||
+    course.status.toLowerCase() === statusFilter.toLowerCase();
+
+  const matchesCategory =
+    categoryFilter === "all" ||
+    course.category.toLowerCase() === categoryFilter.toLowerCase();
+
+  return matchesSearch && matchesStatus && matchesCategory;
+});
+
+  
+  // const addContentVideo = (e?: React.MouseEvent) => {
+  //   e?.preventDefault();
+  //   e?.stopPropagation();
+  //   const newVideo: VideoContent = {
+  //     id: Date.now(),
+  //     title: "",
+  //     description: "",
+  //     url: "",
+  //     duration: "",
+  //     order: contentFormData.videos.length + 1
+  //   };
+  //   setContentFormData({ ...contentFormData, videos: [...contentFormData.videos, newVideo] });
+  // };
+  const addContentVideo = (e?: React.MouseEvent) => {
+  e?.preventDefault();
+  e?.stopPropagation();
+
+  const newVideo: VideoContent = {
+    id: Date.now(), // temporary ID
+    title: "",
+    description: "",
+    url: "",
+    duration: "",
+    order: contentFormData.videos.length + 1,
   };
 
-  const handleSaveCourse = async () => {
+  setContentFormData((prev) => ({
+    ...prev,
+    videos: [...prev.videos, newVideo],
+  }));
+};
+
+
+//   const removeContentVideo = async (videoId: number, e?: React.MouseEvent) => {
+//   e?.preventDefault();
+//   e?.stopPropagation();
+
+//   try {
+// await adminDeleteCourseMedia(parseInt(selectedCourseForContent.id, 10), videoId);
+//     console.log(`✅ Video ${videoId} deleted successfully from server.`);
+
+//     setContentFormData((prev) => ({
+//       ...prev,
+//       videos: prev.videos.filter((video) => video.id !== videoId),
+//     }));
+//   } catch (error) {
+//     console.error("❌ Failed to delete video:", error);
+//   }
+// };
+
+const removeContentVideo = async (videoId: number, e?: React.MouseEvent) => {
+  e?.preventDefault();
+  e?.stopPropagation();
+
+  // Find the video being removed
+  const video = contentFormData.videos.find((v) => v.id === videoId);
+
+  // Immediately remove from UI
+  setContentFormData((prev) => ({
+    ...prev,
+    videos: prev.videos.filter((v) => v.id !== videoId),
+  }));
+
+  // If the video was already uploaded (real DB ID), delete it from backend
+  if (video && selectedCourseForContent && !isNaN(Number(videoId)) && videoId < 9999999999999) {
+    try {
+      await adminDeleteCourseMedia(parseInt(selectedCourseForContent.id, 10), videoId);
+      console.log(`✅ Video ${videoId} deleted successfully from server.`);
+    } catch (error) {
+      console.error(`❌ Failed to delete video ${videoId}:`, error);
+    }
+  } else {
+    console.log("🗑️ Removed local unsaved video only.");
+  }
+};
+
+
+  const updateContentVideo = (videoId: number, field: keyof VideoContent, value: string) => {
+    setContentFormData({
+      ...contentFormData,
+      videos: contentFormData.videos.map(video =>
+        video.id === videoId ? { ...video, [field]: value } : video
+      )
+    });
+  };
+
+  const handleEditCourse = async () => {
     if (!editingCourse) return;
 
     try {
-      const updateData = new FormData();
-      updateData.append('title', formData.title);
-      updateData.append('description', formData.description);
-      updateData.append('price', formData.price);
-      updateData.append('status', formData.status === 'active' ? 'published' : 'draft');
-      updateData.append('category', formData.category);
-      updateData.append('duration', formData.duration);
-      updateData.append('instructors', JSON.stringify(formData.instructors.filter(i => i.trim() !== '')));
+      const statusMap: Record<string, string> = {
+        active: "published",
+        draft: "draft",
+        // archived: "archived",
+      };
 
-      if (formData.thumbnailFile) {
-        try {
-          const thumbFormData = new FormData();
-          thumbFormData.append('file', formData.thumbnailFile);
-          thumbFormData.append('course_folder', `${slugify(formData.title)}/thumbnails`);
-
-          const thumbUploadResult = await fetch(
-            import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/hostinger_upload.php',
-            {
-              method: 'POST',
-              body: thumbFormData,
-            }
-          );
-
-          const thumbResult = await thumbUploadResult.json();
-          if (thumbResult.status === 'success') {
-            updateData.append('thumbnail', thumbResult.url);
-          }
-        } catch (err) {
-          console.error('Thumbnail upload failed:', err);
-        }
+      const payload = new FormData();
+      payload.append("title", formData.title);
+      payload.append("description", formData.description);
+      payload.append("status", statusMap[formData.status] ?? formData.status ?? "draft");
+      payload.append('instructors', JSON.stringify(formData.instructors.filter(i => i.trim() !== '')));
+      const priceValue = formData.price ? parseFloat(formData.price) : 0;
+      payload.append("price", Number.isNaN(priceValue) ? "0.00" : priceValue.toFixed(2));
+      if (formData.category) {
+        payload.append("category", formData.category);
+      }
+      if (formData.duration) {
+        payload.append("duration", formData.duration);
       }
 
-      const response = await adminUpdateCourse(parseInt(editingCourse.id, 10), updateData);
-      const updatedCourse = response.data;
+      const res = await adminUpdateCourse(parseInt(editingCourse.id, 10), payload);
+      const result = res?.data ?? {};
+
+      const normalizedStatus =
+        result.status === "published"
+          ? "active"
+          : result.status === "draft"
+          ? "draft"
+          : result.status === "archived"
+          ? "archived"
+          : formData.status;
+
+      const priceFromResult = result.price ? parseFloat(result.price) : priceValue;
+      const cleanedInstructors = formData.instructors.filter((i) => i.trim() !== "");
 
       setCourses((prevCourses) =>
         prevCourses.map((course) =>
           course.id === editingCourse.id
             ? {
-              ...course,
-              title: updatedCourse.title,
-              description: updatedCourse.description,
-              instructors: updatedCourse.instructors,
-              category: updatedCourse.category,
-              price: parseFloat(updatedCourse.price),
-              duration: updatedCourse.duration,
-              status: updatedCourse.status === 'published' ? 'active' : 'draft',
-              thumbnail: updatedCourse.thumbnail || course.thumbnail,
-            }
+                ...course,
+                title: result.title ?? formData.title,
+                description: result.description ?? formData.description,
+                instructors: cleanedInstructors.length ? cleanedInstructors : course.instructors,
+                category: formData.category || course.category,
+                price: Number.isNaN(priceFromResult) ? course.price : priceFromResult,
+                duration: formData.duration || course.duration,
+                status: normalizedStatus as Course['status'],
+                thumbnail: result.thumbnail || course.thumbnail,
+              }
             : course
         )
       );
@@ -209,54 +278,81 @@ export default function Courses() {
       setIsEditDialogOpen(false);
       setEditingCourse(null);
       resetForm();
+      console.log("✅ Course updated successfully!");
     } catch (error) {
-      alert("Failed to update course.");
+      console.error("❌ Failed to update course:", error);
     }
   };
 
-  const handleSaveContent = async () => {
-    if (!selectedCourseForContent) return;
+ const handleEditContent = async () => {
+  if (!selectedCourseForContent) return;
 
-    try {
-      const updateData = {
-        title: contentFormData.title,
-        description: contentFormData.description,
-      };
+  try {
+    const courseId = parseInt(selectedCourseForContent.id, 10);
 
-      const response = await adminUpdateCourse(parseInt(selectedCourseForContent.id, 10), updateData);
-      const result = response.data;
+    const coursePayload = new FormData();
+    coursePayload.append("title", contentFormData.title);
+    coursePayload.append("description", contentFormData.description);
+    
 
-      setCourses((prevCourses) =>
-        prevCourses.map((course) =>
-          course.id === selectedCourseForContent.id
-            ? {
+    const res = await adminUpdateCourse(courseId, coursePayload);
+    const result = res?.data ?? {};
+
+    for (const [index, video] of contentFormData.videos.entries()) {
+      if (video.file) {
+        const mediaForm = new FormData();
+        mediaForm.append("course", String(courseId));
+        mediaForm.append("file", video.file);
+        mediaForm.append("media_type", "video");
+        mediaForm.append("title", video.title || `Video ${index + 1}`);
+        mediaForm.append("description", video.description || "");
+        mediaForm.append("duration", video.duration || "1");
+        mediaForm.append("order", String(video.order || index + 1));
+
+        try {
+          const uploadRes = await createCourseMedia(courseId, mediaForm);
+          console.log("✅ Uploaded video:", uploadRes.data);
+        } catch (uploadErr) {
+          console.error(`❌ Failed to upload video "${video.title}":`, uploadErr);
+        }
+      }
+    }
+
+    setCourses((prevCourses) =>
+      prevCourses.map((course) =>
+        course.id === selectedCourseForContent.id
+          ? {
               ...course,
               title: result.title ?? contentFormData.title,
               description: result.description ?? contentFormData.description,
               videos: contentFormData.videos,
             }
-            : course
-        )
-      );
+          : course
+      )
+    );
 
-      setIsEditContentDialogOpen(false);
-      setSelectedCourseForContent(null);
-      setContentFormData({
-        title: "",
-        description: "",
-        videos: [],
-      });
-    } catch (error) {
-      alert("Failed to update course content.");
-    }
-  };
+    setIsEditContentDialogOpen(false);
+    setSelectedCourseForContent(null);
+    setContentFormData({
+      title: "",
+      description: "",
+      videos: [],
+    });
+
+    console.log("✅ Course content & videos updated successfully!");
+  } catch (error) {
+    console.error("❌ Failed to update course content:", error);
+  }
+};
+
 
   const handleDeleteCourse = async (courseId: string) => {
     try {
       await adminDeleteCourse(parseInt(courseId, 10));
       setCourses((prevCourses) => prevCourses.filter((course) => course.id !== courseId));
+      console.log(`✅ Course ${courseId} deleted successfully`);
     } catch (error) {
-      console.error("Failed to delete course:", error);
+      console.error("❌ Failed to delete course:", error);
     }
   };
 
@@ -265,100 +361,170 @@ export default function Courses() {
     setFormData({
       title: course.title,
       description: course.description,
-      instructors: course.instructors,
+  instructors: course.instructors,
       category: course.category,
       price: course.price.toString(),
       duration: course.duration,
       status: course.status,
       thumbnail: course.thumbnail,
-      thumbnailFile: null,
       videos: course.videos
     });
     setIsEditDialogOpen(true);
   };
 
+  // const openEditContentDialog = (course: Course) => {
+  //   setSelectedCourseForContent(course);
+  //   // Fetch latest media for this course
+
+  //   setContentFormData({
+  //     title: course.title,
+  //     description: course.description,
+  //     videos: [...course.videos]
+  //   });
+  //   setIsEditContentDialogOpen(true);
+  // };
   const openEditContentDialog = async (course: Course) => {
-    setSelectedCourseForContent(course);
-    const videos = await fetchCourseMedia(parseInt(course.id, 10));
-    setContentFormData({
-      title: course.title,
-      description: course.description,
-      videos,
-    });
-    setIsEditContentDialogOpen(true);
-  };
+  setSelectedCourseForContent(course);
+
+  // Fetch latest media for this course
+  const videos = await fetchCourseMedia(parseInt(course.id, 10));
+  console.log('videossssssssssssssssssss', videos)
+
+  setContentFormData({
+    title: course.title,
+    description: course.description,
+    videos,
+  });
+
+  setIsEditContentDialogOpen(true);
+};
+
 
   const resetForm = () => {
     setFormData({
       title: "",
       description: "",
-      instructors: [""],
+  instructors: [""],
       category: "",
       price: "",
       duration: "",
       status: "draft",
       thumbnail: "/placeholder.svg",
-      thumbnailFile: null,
       videos: []
     });
   };
 
-  useEffect(() => {
-    async function loadCourses() {
-      try {
-        const res = await adminListCourses();
-        const djangoCourses = res?.data?.results ?? [];
+// useEffect(() => {
+//     async function loadCourses() {
+//       const res = await adminListCourses();
+//       const djangoCourses = res?.data?.results ?? [];
+//       // const mappedCourses = djangoCourses.map((c: any) => ({
+//       //   id: c.id.toString(),
+//       //   title: c.title,
+//       //   description: c.description,
+//       //   instructors: ["Admin"], 
+//       //   category: c.category || "Uncategorized",
+//       //   price: parseFloat(c.price),
+//       //   duration: c.duration || "—",
+//       //   status: c.status === "published" ? "active" : "draft",
+//       //   thumbnail: c.thumbnail || "/placeholder.svg",
+//       //   videos: (c.media || []).map((m: any, idx: number) => ({
+//       //     id: m.id,
+//       //     title: m.title,
+//       //     description: "",
+//       //     url: m.file,
+//       //     duration: m.duration || "",
+//       //     order: idx + 1,
+//       //   })),
+//       //   students: 0,
+//       //   rating: 0,
+//       //   progress: 0,
+//       // }));
+//       const mappedCourses = djangoCourses.map((c: any) => ({
+//   id: c.id.toString(),
+//   title: c.title,
+//   description: c.description,
+//   instructors: c.instructors && c.instructors.length ? c.instructors : ["Admin"], // ✅ fix instructors
+//   category: c.category || "Uncategorized", // ✅ fix category
+//   price: parseFloat(c.price),
+//   duration: c.duration || "—", // ✅ fix duration
+//   status: c.status === "published" ? "active" : "draft",
+//   thumbnail: c.thumbnail || "/placeholder.svg",
+//   videos: (c.media || []).map((m: any, idx: number) => ({
+//     id: m.id,
+//     title: m.title,
+//     description: m.description || "",
+//     url: m.file,
+//     duration: m.duration || "",
+//     order: m.order || idx + 1,
+//   })),
+//   students: 0,
+//   rating: 0,
+//   progress: 0,
+// }));
 
-        const mappedCourses = djangoCourses.map((c: any) => {
-          const safeCategory =
-            c.category && typeof c.category === "string" && c.category.trim() !== ""
-              ? c.category
-              : "General";
 
-          const safeDuration =
-            c.duration && typeof c.duration === "string" && c.duration.trim() !== ""
-              ? c.duration
-              : "N/A";
+//       setCourses(mappedCourses);
+//     }
 
-          return {
-            id: c.id.toString(),
-            title: c.title || "Untitled Course",
-            description: c.description || "",
-            instructors:
-              Array.isArray(c.instructors) && c.instructors.length > 0
-                ? c.instructors
-                : ["Admin"],
-            category: safeCategory,
-            price: parseFloat(c.price) || 0,
-            duration: safeDuration,
-            status: c.status === "published" ? "active" : "draft",
-            thumbnail: c.thumbnail || "/placeholder.svg",
-            videos: (c.media || []).map((m: any, idx: number) => ({
-              id: m.id,
-              title: m.title,
-              session: m.session || "",
-              description: m.description || "",
-              url: m.file,
-              duration: m.duration || "",
-              order: m.order || idx + 1,
-            })),
-            students: 0,
-            rating: 0,
-            progress: 0,
-          };
-        });
+//     loadCourses();
+// }, []);
+useEffect(() => {
+  async function loadCourses() {
+    try {
+      const res = await adminListCourses();
+      const djangoCourses = res?.data?.results ?? [];
 
-        setCourses(mappedCourses);
-      } catch (error) {
-        console.error("Failed to load courses:", error);
-      }
+      const mappedCourses = djangoCourses.map((c: any) => {
+        const safeCategory =
+          c.category && typeof c.category === "string" && c.category.trim() !== ""
+            ? c.category
+            : "General"; // 👈 fallback instead of "Uncategorized"
+
+        const safeDuration =
+          c.duration && typeof c.duration === "string" && c.duration.trim() !== ""
+            ? c.duration
+            : "N/A";
+
+        return {
+          id: c.id.toString(),
+          title: c.title || "Untitled Course",
+          description: c.description || "",
+          instructors:
+            Array.isArray(c.instructors) && c.instructors.length > 0
+              ? c.instructors
+              : ["Admin"],
+          category: safeCategory,
+          price: parseFloat(c.price) || 0,
+          duration: safeDuration,
+          status: c.status === "published" ? "active" : "draft",
+          thumbnail: c.thumbnail || "/placeholder.svg",
+          videos: (c.media || []).map((m: any, idx: number) => ({
+            id: m.id,
+            title: m.title,
+            description: m.description || "",
+            url: m.file,
+            duration: m.duration || "",
+            order: m.order || idx + 1,
+          })),
+          students: 0,
+          rating: 0,
+          progress: 0,
+        };
+      });
+
+      setCourses(mappedCourses);
+    } catch (error) {
+      console.error("❌ Failed to load courses:", error);
     }
+  }
 
-    loadCourses();
-  }, []);
+  loadCourses();
+}, []);
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Courses</h1>
@@ -376,157 +542,139 @@ export default function Courses() {
           open={isAddDialogOpen}
           setOpen={setIsAddDialogOpen}
           categories={categories}
-          onAddCourse={async (newCourse, onProgress) => {
-            try {
-              const formData = new FormData();
-              formData.append('title', newCourse.title);
-              formData.append('description', newCourse.description);
-              formData.append('price', newCourse.price || '0.00');
+           onAddCourse={async (newCourse) => {
+                      try {
+                        // Create FormData for the API with course data (without videos)
+                        const formData = new FormData();
+                        formData.append('title', newCourse.title);
+                        formData.append('description', newCourse.description);
+                        formData.append('price', newCourse.price || '0.00');
 
-              const statusMap: Record<string, string> = {
-                active: 'published',
-                draft: 'draft',
-              };
-              formData.append('status', statusMap[newCourse.status] ?? 'draft');
+                        const statusMap: Record<string, string> = {
+                          active: 'published',
+                          draft: 'draft',
+                          // archived: 'archived',
+                                                    };
+                            formData.append('status', statusMap[newCourse.status] ?? 'draft');
 
-              if (newCourse.category) formData.append('category', newCourse.category);
-              if (newCourse.duration) formData.append('duration', newCourse.duration);
-              if (newCourse.nextCourseRecommendation)
-                formData.append('next_course_recommendation', newCourse.nextCourseRecommendation);
+                            if (newCourse.category) formData.append('category', newCourse.category);
+                            if (newCourse.duration) formData.append('duration', newCourse.duration);
+                            if (newCourse.nextCourseRecommendation)
+                              formData.append('next_course_recommendation', newCourse.nextCourseRecommendation);
 
-              formData.append('instructors', JSON.stringify(newCourse.instructors.filter(i => i.trim() !== '')));
+                            formData.append('instructors', JSON.stringify(newCourse.instructors.filter(i => i.trim() !== '')));
 
-              // Upload thumbnail to Hostinger if provided
-              if (newCourse.thumbnailFile) {
-                try {
-                  const thumbFormData = new FormData();
-                  thumbFormData.append('file', newCourse.thumbnailFile);
-                  thumbFormData.append('course_folder', `${slugify(newCourse.title)}/thumbnails`);
+                            if (newCourse.thumbnailFile) formData.append('thumbnail', newCourse.thumbnailFile);
 
-                  const thumbUploadResult = await fetch(
-                    import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/hostinger_upload.php',
-                    {
-                      method: 'POST',
-                      body: thumbFormData,
-                    }
-                  );
+                                      
 
-                  const thumbResult = await thumbUploadResult.json();
-                  if (thumbResult.status === 'success') {
-                    formData.append('thumbnail', thumbResult.url);
-                  }
-                } catch (err) {
-                  console.error('Thumbnail upload failed:', err);
-                }
-              }
+                        // Create the course first (without videos)
+                        const response = await adminCreateCourseMultipart(formData);
+                        const createdCourse = response.data;
+                        const courseId = createdCourse.id;
+          
+                        console.log("✅ Course created successfully:", createdCourse);
+          
+                        // Upload videos separately if any
+                        const uploadedVideos = [];
+                        if (courseId && newCourse.videos.length > 0) {
+                          for (const video of newCourse.videos) {
+                            if (video.file) {
+                              const mediaFormData = new FormData();
+                              mediaFormData.append('course', String(courseId));
+                              mediaFormData.append('file', video.file);
+                              mediaFormData.append('media_type', 'video');
+                              mediaFormData.append('title', video.title || video.file.name);
+                              mediaFormData.append('description', video.description || '');
+                              mediaFormData.append('duration', video.duration || '0:00');
+                              mediaFormData.append('order', String(video.order || uploadedVideos.length + 1));
+                              
+                              try {
+                                const mediaResponse = await createCourseMedia(courseId, mediaFormData);
+                                uploadedVideos.push({
+                                  id: mediaResponse.data.id,
+                                  title: mediaResponse.data.title,
+                                  description: mediaResponse.data.title,
+                                  url: mediaResponse.data.file,
+                                  duration: mediaResponse.data.duration || "0:00",
+                                  order: mediaResponse.data.order || uploadedVideos.length + 1,
+                                });
+                              } catch (mediaError) {
+                                console.error("❌ Failed to upload video:", video.title, mediaError);
+                              }
+                            }
+                          }
+                        }
+          
+                        // Add the course to local state with uploaded videos
+                        // const courseWithVideos: Course = {
+                        //   id: createdCourse.id,
+                        //   title: createdCourse.title,
+                        //   description: createdCourse.description,
+                        //   instructors: ["Admin"],
+                        //   students: 0,
+                        //   rating: 0,
+                        //   status: createdCourse.status,
+                        //   progress: 0,
+                        //   videos: uploadedVideos,
+                        //   category: createdCourse.category,
+                        //   price: Number(createdCourse.price || 0),
+                        //   duration: createdCourse.duration,
+                        //   thumbnail: createdCourse.thumbnail,
+                        // };
+                          const courseWithVideos: Course = {
+                          id: String(createdCourse.id),
+                          title: createdCourse.title || newCourse.title,
+                          description: createdCourse.description || newCourse.description,
+                          instructors: createdCourse.instructors?.length
+                            ? createdCourse.instructors
+                            : newCourse.instructors.filter(i => i.trim() !== ""),
+                          students: 0,
+                          rating: 0,
+                          status: createdCourse.status === "published" ? "active" : "draft",
+                          progress: 0,
+                          videos: uploadedVideos,
+                          category: createdCourse.category || newCourse.category || "Uncategorized",
+                          price: Number(createdCourse.price || newCourse.price || 0),
+                          duration: createdCourse.duration || newCourse.duration || "—",
+                          thumbnail: createdCourse.thumbnail || "/placeholder.svg",
+                        };
 
-              const response = await adminCreateCourseMultipart(formData);
-              const createdCourse = response.data;
-              const courseId = createdCourse.id;
-
-              const courseFolder = slugify(newCourse.title);
-
-              // Parallel uploads for faster processing
-              const uploadPromises = newCourse.videos.map(async (video, index) => {
-                if (!video.file && (!video.url || !video.url.startsWith('http'))) return null;
-
-                const sessionFolder = video.session ? slugify(video.session) : 'general';
-                const fullFolderPath = `${courseFolder}/${sessionFolder}`;
-
-                try {
-                  // Skip upload if video already has a URL (already uploaded)
-                  if (video.url && video.url.startsWith('http')) {
-                    console.log(`Skipping upload for already uploaded video: ${video.title}`);
-                    onProgress(video.id, 100);
-                    return {
-                      id: video.id,
-                      title: video.title,
-                      description: video.description || video.title,
-                      url: video.url,
-                      duration: video.duration || "0:00",
-                      order: video.order || index + 1,
-                    };
-                  }
-
-                  if (!video.file) return null;
-
-                  const uploadResult = await uploadWithProgress(
-                    import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/hostinger_upload.php',
-                    video.file,
-                    fullFolderPath,
-                    (progress) => {
-                      onProgress(video.id, progress);
-                    }
-                  );
-
-                  if (uploadResult.status === 'success') {
-                    const mediaFormData = new FormData();
-                    mediaFormData.append('course', String(courseId));
-                    mediaFormData.append('file', uploadResult.url);
-                    mediaFormData.append('media_type', 'video');
-                    mediaFormData.append('title', video.title || video.file.name);
-                    mediaFormData.append('description', video.description || '');
-                    mediaFormData.append('duration', video.duration || '0:00');
-                    mediaFormData.append('order', String(video.order || index + 1));
-                    mediaFormData.append('session', video.session || "");
-
-                    const mediaResponse = await createCourseMedia(courseId, mediaFormData);
-                    return {
-                      id: mediaResponse.data.id,
-                      title: mediaResponse.data.title,
-                      description: mediaResponse.data.title,
-                      url: mediaResponse.data.file,
-                      duration: mediaResponse.data.duration || "0:00",
-                      order: mediaResponse.data.order || index + 1,
-                    };
-                  }
-                } catch (mediaError) {
-                  console.error("❌ Failed to upload video:", video.title, mediaError);
-                }
-                return null;
-              });
-
-              const uploadedVideos = (await Promise.all(uploadPromises)).filter(v => v !== null);
-
-              const courseWithVideos: Course = {
-                id: String(createdCourse.id),
-                title: createdCourse.title || newCourse.title,
-                description: createdCourse.description || newCourse.description,
-                instructors: createdCourse.instructors?.length
-                  ? createdCourse.instructors
-                  : newCourse.instructors.filter(i => i.trim() !== ""),
-                students: 0,
-                rating: 0,
-                status: createdCourse.status === "published" ? "active" : "draft",
-                progress: 0,
-                videos: uploadedVideos,
-                category: createdCourse.category || newCourse.category || "Uncategorized",
-                price: Number(createdCourse.price || newCourse.price || 0),
-                duration: createdCourse.duration || newCourse.duration || "—",
-                thumbnail: createdCourse.thumbnail || "/placeholder.svg",
-              };
-
-              setCourses((prev) => [courseWithVideos, ...prev]);
-              return true;
-            } catch (error) {
-              alert("Failed to create course.");
-              return false;
-            }
-          }}
+          
+                        setCourses((prev) => [courseWithVideos, ...prev]);
+                        
+                        // Refresh API courses data
+                        const coursesResponse = await adminListCourses();
+                        setApiCourses(coursesResponse.data.results || []);
+                        
+                        console.log("✅ Course created successfully with", uploadedVideos.length, "videos!");
+                        return true;
+                      } catch (error) {
+                        console.error("❌ Failed to create course:", error);
+                        alert("Failed to create course. Please try again.");
+                        return false;
+                      }
+                    }}
         />
       </div>
 
+      {/* Filters */}
       <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search courses or instructors..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+        <CardHeader>
+          <CardTitle className="text-lg">Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search courses or instructors..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-40">
@@ -553,12 +701,13 @@ export default function Courses() {
         </CardContent>
       </Card>
 
+      {/* Courses Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCourses.map((course) => (
           <Card key={course.id} className="overflow-hidden">
             <div className="aspect-video bg-muted relative">
-              <img
-                src={course.thumbnail}
+              <img 
+                src={course.thumbnail} 
                 alt={course.title}
                 className="w-full h-full object-cover"
               />
@@ -610,7 +759,7 @@ export default function Courses() {
                 </div>
               )}
             </div>
-
+            
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -624,12 +773,12 @@ export default function Courses() {
                 </Badge>
               </div>
             </CardHeader>
-
+            
             <CardContent>
               <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
                 {course.description}
               </p>
-
+              
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center space-x-4">
@@ -647,7 +796,7 @@ export default function Courses() {
                     </div>
                   </div>
                 </div>
-
+                
                 <div className="flex items-center justify-between pt-2 border-t">
                   <div className="flex items-center text-sm font-medium">
                     <DollarSign className="w-3 h-3 mr-1" />
@@ -659,55 +808,187 @@ export default function Courses() {
                 </div>
               </div>
             </CardContent>
+            <div className="p-4 pt-0 flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(`/admin/courses/${course.id}`, { state: { course } })}
+              >
+                View Full Info
+              </Button>
+            </div>
           </Card>
         ))}
       </div>
 
+      {filteredCourses.length === 0 && (
+        <Card>
+          <CardContent className="py-16">
+            <div className="text-center space-y-4">
+              <BookOpen className="w-12 h-12 mx-auto text-muted-foreground" />
+              <div>
+                <h3 className="text-lg font-medium">No courses found</h3>
+                <p className="text-muted-foreground">Try adjusting your search filters or add a new course.</p>
+              </div>
+              <Button onClick={() => setIsAddDialogOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Your First Course
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Edit Course Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Course</DialogTitle>
-            <DialogDescription>Update course information and settings</DialogDescription>
+            <DialogDescription>
+              Update the course information below
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="edit-title">Course Title</Label>
-              <Input id="edit-title" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Enter course title" />
+            {/* Course Image Upload */}
+            <div className="space-y-4">
+              <Label className="text-base font-medium">Course Cover Image</Label>
+              <div className="flex items-center space-x-4">
+                <div className="w-32 h-20 border border-border rounded-lg overflow-hidden bg-muted">
+                  <img 
+                    src={formData.thumbnail} 
+                    alt="Course cover" 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Change Image
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Recommended size: 1920x1080px
+                  </p>
+                </div>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="edit-description">Description</Label>
-              <Textarea id="edit-description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="Enter course description" rows={4} />
-            </div>
+
             <div className="grid grid-cols-2 gap-4">
-              <div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-title">Course Title</Label>
+                <Input
+                  id="edit-title"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="Enter course title"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Instructors</Label>
+                {formData.instructors.map((inst, idx) => (
+                  <div key={idx} className="flex gap-2 mb-2">
+                    <Input
+                      value={inst}
+                      onChange={e => {
+                        const newInstructors = [...formData.instructors];
+                        newInstructors[idx] = e.target.value;
+                        setFormData({ ...formData, instructors: newInstructors });
+                      }}
+                      placeholder={`Instructor ${idx + 1}`}
+                    />
+                    {formData.instructors.length > 1 && (
+                      <Button type="button" size="icon" variant="ghost" onClick={() => {
+                        setFormData({
+                          ...formData,
+                          instructors: formData.instructors.filter((_, i) => i !== idx)
+                        });
+                      }}>-</Button>
+                    )}
+                    {idx === formData.instructors.length - 1 && (
+                      <Button type="button" size="icon" variant="ghost" onClick={() => {
+                        setFormData({
+                          ...formData,
+                          instructors: [...formData.instructors, ""]
+                        });
+                      }}>+</Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea
+                id="edit-description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Course description"
+                rows={3}
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
                 <Label htmlFor="edit-category">Category</Label>
                 <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
-                  <SelectTrigger id="edit-category"><SelectValue placeholder="Select category" /></SelectTrigger>
-                  <SelectContent>{categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}</SelectContent>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category} value={category}>{category}</SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label htmlFor="edit-price">Price</Label>
-                <Input id="edit-price" type="number" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} placeholder="0.00" />
+              <div className="space-y-2">
+                <Label htmlFor="edit-price">Price ($)</Label>
+                <Input
+                  id="edit-price"
+                  type="number"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  placeholder="0"
+                />
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="edit-duration">Duration</Label>
-                <Input id="edit-duration" value={formData.duration} onChange={(e) => setFormData({ ...formData, duration: e.target.value })} placeholder="e.g., 10h 30m" />
-              </div>
-              <div>
-                <Label htmlFor="edit-status">Status</Label>
-                <Select value={formData.status} onValueChange={(value: "active" | "draft") => setFormData({ ...formData, status: value })}>
-                  <SelectTrigger id="edit-status"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="active">Active</SelectItem><SelectItem value="draft">Draft</SelectItem></SelectContent>
-                </Select>
+                <Input
+                  id="edit-duration"
+                  value={formData.duration}
+                  onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                  placeholder="e.g. 8 weeks"
+                />
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleSaveCourse}>Save Changes</Button>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-status">Status</Label>
+              <Select value={formData.status} onValueChange={(value: Course['status']) => setFormData({ ...formData, status: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="archived">Archived</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button variant="outline" onClick={() => {
+                setIsEditDialogOpen(false);
+                setEditingCourse(null);
+                resetForm();
+              }}>
+                Cancel
+              </Button>
+              <Button onClick={handleEditCourse}>Update Course</Button>
             </div>
           </div>
         </DialogContent>
@@ -717,52 +998,134 @@ export default function Courses() {
       <Dialog open={isEditContentDialogOpen} onOpenChange={setIsEditContentDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Course Content</DialogTitle>
-            <DialogDescription>Manage videos for "{contentFormData.title}"</DialogDescription>
+            <DialogTitle>Update course information and video content</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-3">
-              <Label>Course Videos</Label>
-              {contentFormData.videos.map((video, index) => (
-                <Card key={video.id || index} className="p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Video className="w-4 h-4" />
-                        <span className="font-medium">{video.title}</span>
-                      </div>
-                      {video.description && (<p className="text-sm text-muted-foreground">{video.description}</p>)}
-                      {video.duration && (<div className="flex items-center gap-2 text-sm text-muted-foreground"><Clock className="w-3 h-3" />{video.duration}</div>)}
-                      {video.url && (<a href={video.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline inline-flex items-center gap-1"><Play className="w-3 h-3" />View Video</a>)}
-                    </div>
-                    <Button variant="destructive" size="sm" onClick={async () => {
-                      if (!selectedCourseForContent) return;
-                      try {
-                        await adminDeleteCourseMedia(parseInt(selectedCourseForContent.id, 10), video.id);
-                        setContentFormData({ ...contentFormData, videos: contentFormData.videos.filter((v) => v.id !== video.id) });
-                      } catch (error) {
-                        console.error("Failed to delete video:", error);
-                        alert("Failed to delete video");
-                      }
-                    }}>
-                      <Trash2 className="w-4 h-4" />
+          {selectedCourseForContent && (
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="content-title">Course Title</Label>
+                <Input
+                  id="content-title"
+                  value={contentFormData.title}
+                  onChange={(e) => setContentFormData({ ...contentFormData, title: e.target.value })}
+                  placeholder="Enter course title"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="content-description">Description</Label>
+                <Textarea
+                  id="content-description"
+                  value={contentFormData.description}
+                  onChange={(e) => setContentFormData({ ...contentFormData, description: e.target.value })}
+                  placeholder="Enter course description"
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-medium">Course Videos</Label>
+                  <Button type="button" size="sm" onClick={(e) => addContentVideo(e)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Video
+                  </Button>
+                </div>
+                
+                {contentFormData.videos.length === 0 ? (
+                  <div className="text-center py-8 border border-dashed border-border rounded-lg">
+                    <Video className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">No videos added yet</p>
+                    <Button type="button" variant="outline" size="sm" className="mt-2" onClick={(e) => addContentVideo(e)}>
+                      Add First Video
                     </Button>
                   </div>
-                </Card>
-              ))}
-              {contentFormData.videos.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
-                  <Video className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p>No videos yet</p>
-                  <p className="text-sm">Add videos when creating or editing the course</p>
-                </div>
-              )}
+                ) : (
+                  contentFormData.videos.map((video, index) => (
+                    <div key={video.id} className="p-4 border border-border rounded-lg space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium">Video {index + 1}</h4>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => removeContentVideo(video.id, e)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label>Video Title</Label>
+                          <Input
+                            value={video.title}
+                            onChange={(e) => updateContentVideo(video.id, 'title', e.target.value)}
+                            placeholder="Video title"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Duration</Label>
+                          <Input
+                            value={video.duration}
+                            onChange={(e) => updateContentVideo(video.id, 'duration', e.target.value)}
+                            placeholder="e.g. 25:30"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Video Description</Label>
+                        <Textarea
+                          value={video.description}
+                          onChange={(e) => updateContentVideo(video.id, 'description', e.target.value)}
+                          placeholder="Video description"
+                          rows={2}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Upload Video File</Label>
+                        <Input
+                          type="file"
+                          accept="video/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              // تحديث الـ state بحيث يخزن الملف
+                              setContentFormData({
+                                ...contentFormData,
+                                videos: contentFormData.videos.map((v) =>
+                                  v.id === video.id ? { ...v, file, url: URL.createObjectURL(file) } : v
+                                ),
+                              });
+                            }
+                          }}
+                        />
+                        {video.url && (
+                          <video
+                            src={video.url}
+                            controls
+                            className="w-full mt-2 rounded-md border border-border"
+                          />
+                          )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button variant="outline" onClick={() => {
+                  setIsEditContentDialogOpen(false);
+                  setSelectedCourseForContent(null);
+                }}>
+                  Cancel
+                </Button>
+                <Button onClick={handleEditContent}>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Changes
+                </Button>
+              </div>
             </div>
-            <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button variant="outline" onClick={() => { setIsEditContentDialogOpen(false); setSelectedCourseForContent(null); }}>Close</Button>
-              <Button onClick={handleSaveContent}>Save Changes</Button>
-            </div>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
