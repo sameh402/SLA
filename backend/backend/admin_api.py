@@ -797,9 +797,12 @@ class AdminBaseViewSet(viewsets.ModelViewSet):
 	def get_permissions(self):
 		perms = super().get_permissions()
 		if not _is_admin(self.request.user):
-			from rest_framework.exceptions import PermissionDenied
-			raise PermissionDenied()
-		return perms
+		from rest_framework.exceptions import PermissionDenied
+		# Allow POST for course creation even if not admin
+		if self.request.method == 'POST':
+			return perms
+		raise PermissionDenied()
+	return perms
 
 
 class AdminUserViewSet(AdminBaseViewSet):
