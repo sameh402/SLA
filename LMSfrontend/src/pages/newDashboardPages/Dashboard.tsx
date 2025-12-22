@@ -1,6 +1,36 @@
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { CourseWithVideos, VideoContent, coursesWithContent } from '@/lib/coursesData';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { adminSummary, adminListCourses, adminUpdateCourse, adminCreateCourseMultipart, createCourseMedia, adminDeleteCourseMedia } from '@/api/admin';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  BookOpen,
+  Users,
+  UserCheck,
+  TrendingUp,
+  Star,
+  Calendar,
+  Clock,
+  Award,
+  Plus,
+  ArrowUpRight,
+  ArrowDownRight,
+  Edit,
+  Video,
+  Trash2,
+  Save
+} from 'lucide-react';
+import AddCourseDialog from '@/components/AddCourseDialog';
 
 // Sample data for revenue and active students organized by year
 const revenueData = {
@@ -159,86 +189,6 @@ const generateSampleData = (type: 'revenue' | 'enrollments', days: number = 30) 
   }
 
   return data;
-};
-
-// Dashboard statistics cards data - will be updated with API data
-const getStats = (summaryData: any) => {
-  if (!summaryData) {
-    return [
-      {
-        title: "Total Courses",
-        value: "0",
-        change: "0%",
-        changeType: "increase" as const,
-        icon: BookOpen,
-        color: "bg-blue-500"
-      },
-      {
-        title: "Active Students",
-        value: "0",
-        change: "0%",
-        changeType: "increase" as const,
-        icon: Users,
-        color: "bg-green-500"
-      },
-      {
-        title: "Video Content",
-        value: "0",
-        change: "0%",
-        changeType: "increase" as const,
-        icon: Video,
-        color: "bg-purple-500"
-      },
-      {
-        title: "Revenue",
-        value: "$0",
-        change: "0%",
-        changeType: "increase" as const,
-        icon: TrendingUp,
-        color: "bg-green-600"
-      }
-    ];
-  }
-
-  const totalCourses = (summaryData.courses?.published || 0) + (summaryData.courses?.draft || 0);
-  const activeStudents = summaryData.enrollments?.active || 0;
-  const totalRevenue = summaryData.revenue?.total || 0;
-  const totalVideos = summaryData.total_videos || 0;
-
-  return [
-    {
-      title: "Total Courses",
-      value: totalCourses.toString(),
-      change: "+12%",
-      changeType: "increase" as const,
-      icon: BookOpen,
-      color: "bg-blue-500"
-    },
-    {
-      title: "Active Students",
-      value: activeStudents.toString(),
-      change: "+8%",
-      changeType: "increase" as const,
-      icon: Users,
-      color: "bg-green-500"
-    },
-    {
-      title: "Video Content",
-      value: totalVideos.toString(),
-      change: "+20%",
-      changeType: "increase" as const,
-      icon: Video,
-      color: "bg-purple-500"
-    },
-    {
-      title: "Revenue",
-      value: `$${totalRevenue.toLocaleString()}`,
-      change: "+15%",
-      changeType: "increase" as const,
-      icon: TrendingUp,
-      color: "bg-green-600"
-    }
-  ];
 };
 
 import DashboardStats from './components/DashboardStats';
