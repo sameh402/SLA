@@ -1,25 +1,22 @@
 {
     "cleanUrls": true,
     "trailingSlash": false,
-    "routes": [
+    "rewrites": [
         {
-            "src": "/api/(.*)",
-            "dest": "https://sla-delta-hazel.vercel.app/api/$1"
+            "source": "/api/(.*)",
+            "destination": "https://sla-delta-hazel.vercel.app/api/$1"
         },
         {
-            "src": "/static/(.*)",
-            "dest": "https://sla-delta-hazel.vercel.app/static/$1"
+            "source": "/static/(.*)",
+            "destination": "https://sla-delta-hazel.vercel.app/static/$1"
         },
         {
-            "src": "/media/(.*)",
-            "dest": "https://sla-delta-hazel.vercel.app/media/$1"
+            "source": "/media/(.*)",
+            "destination": "https://sla-delta-hazel.vercel.app/media/$1"
         },
         {
-            "handle": "filesystem"
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/index.html"
+            "source": "/((?!api|static|media).*)",
+            "destination": "/index.html"
         }
     ],
     "headers": [
