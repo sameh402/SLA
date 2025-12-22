@@ -58,6 +58,7 @@ class CourseSerializer(serializers.ModelSerializer):
     created_by = serializers.ReadOnlyField(source='created_by.id')
     videos_count = serializers.SerializerMethodField()
     media = CourseMediaSerializer(many=True, read_only=True)
+    thumbnail = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = Course
@@ -85,6 +86,12 @@ class CourseSerializer(serializers.ModelSerializer):
 
     def get_videos_count(self, obj):
         return obj.media.filter(media_type='video').count()
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        if request and request.user and request.user.is_authenticated:
+            validated_data['created_by'] = request.user
+        return super().create(validated_data)
 
     def update(self, instance, validated_data):
         # Explicitly handle instructors updates
