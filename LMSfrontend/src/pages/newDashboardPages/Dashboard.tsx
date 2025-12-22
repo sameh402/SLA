@@ -147,17 +147,17 @@ const availableYears = [2022, 2023, 2024];
 const generateSampleData = (type: 'revenue' | 'enrollments', days: number = 30) => {
   const data = [];
   const baseValue = type === 'revenue' ? 1000 : 10;
-  
+
   for (let i = days - 1; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);
-    
+
     data.push({
       period: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       value: baseValue + Math.floor(Math.random() * baseValue * 0.5)
     });
   }
-  
+
   return data;
 };
 
@@ -174,7 +174,7 @@ const getStats = (summaryData: any) => {
         color: "bg-blue-500"
       },
       {
-        title: "Active Students", 
+        title: "Active Students",
         value: "0",
         change: "0%",
         changeType: "increase" as const,
@@ -204,7 +204,7 @@ const getStats = (summaryData: any) => {
   const activeStudents = summaryData.enrollments?.active || 0;
   const totalRevenue = summaryData.revenue?.total || 0;
   const totalVideos = summaryData.total_videos || 0;
-  
+
   return [
     {
       title: "Total Courses",
@@ -215,7 +215,7 @@ const getStats = (summaryData: any) => {
       color: "bg-blue-500"
     },
     {
-      title: "Active Students", 
+      title: "Active Students",
       value: activeStudents.toString(),
       change: "+8%",
       changeType: "increase" as const,
@@ -245,7 +245,7 @@ import React, { useState, useEffect } from 'react';
 import { CourseWithVideos, VideoContent, coursesWithContent } from '@/lib/coursesData';
 import { storage } from '@/lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { adminSummary, adminListCourses, adminUpdateCourse,adminCreateCourseMultipart, createCourseMedia, adminDeleteCourseMedia } from '@/api/admin';
+import { adminSummary, adminListCourses, adminUpdateCourse, adminCreateCourseMultipart, createCourseMedia, adminDeleteCourseMedia } from '@/api/admin';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -254,11 +254,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 // import AddCourseDialog from '../components/AddCourseDialog';
-import { 
-  BookOpen, 
-  Users, 
-  UserCheck, 
-  TrendingUp, 
+import {
+  BookOpen,
+  Users,
+  UserCheck,
+  TrendingUp,
   Star,
   Calendar,
   Clock,
@@ -279,7 +279,7 @@ export default function Dashboard() {
   const [revenuePeriod, setRevenuePeriod] = useState<'quarter' | 'month'>('month');
   const [studentsYear, setStudentsYear] = useState(2024);
   const [studentsPeriod, setStudentsPeriod] = useState<'quarter' | 'month'>('month');
-  
+
   // API data state
   const [summaryData, setSummaryData] = useState<any>(null);
   const [apiCourses, setApiCourses] = useState<any[]>([]);
@@ -296,7 +296,94 @@ export default function Dashboard() {
   const [certificates, setCertificates] = useState([]);
   const [certificateForm, setCertificateForm] = useState({ student: '', courseId: '', date: '' });
   const [selectedCourseId, setSelectedCourseId] = useState("");
-  const [uploadVideos, setUploadVideos] = useState([{ title: "", description: "", duration: "", file: null, uploadProgress: 0, url: "" }]);
+  const [uploadVideos, setUploadVideos] = useState([{ id: Date.now(), title: "", description: "", duration: "", file: null, uploadProgress: 0, url: "" }]);
+
+  // Sequential upload queue
+  const [uploadQueue, setUploadQueue] = useState<{
+    file: File;
+    index: number;
+    type: 'new' | 'edit' | 'uploadDialog';
+  }[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+
+  useEffect(() => {
+    const processQueue = async () => {
+      if (isUploading || uploadQueue.length === 0) return;
+
+      setIsUploading(true);
+      const item = uploadQueue[0];
+      const { file, index, type } = item;
+
+      const videoName = `${Date.now()}_${file.name}`;
+      const storageRef = ref(storage, `videos/${videoName}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on('state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          if (type === 'new') {
+            setNewCourse(prev => {
+              const updated = [...prev.videos];
+              if (updated[index]) updated[index].uploadProgress = progress;
+              return { ...prev, videos: updated };
+            });
+          } else if (type === 'edit') {
+            setEditFormData(prev => {
+              const updated = [...prev.videos];
+              if (updated[index]) updated[index].uploadProgress = progress;
+              return { ...prev, videos: updated };
+            });
+          } else if (type === 'uploadDialog') {
+            setUploadVideos(prev => {
+              const updated = [...prev];
+              if (updated[index]) updated[index].uploadProgress = progress;
+              return { ...prev, videos: updated };
+            });
+          }
+        },
+        (error) => {
+          alert('Video upload failed: ' + error.message);
+          setUploadQueue(prev => prev.slice(1));
+          setIsUploading(false);
+        },
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          if (type === 'new') {
+            setNewCourse(prev => {
+              const updated = [...prev.videos];
+              if (updated[index]) {
+                updated[index].url = downloadURL;
+                updated[index].uploadProgress = 100;
+              }
+              return { ...prev, videos: updated };
+            });
+          } else if (type === 'edit') {
+            setEditFormData(prev => {
+              const updated = [...prev.videos];
+              if (updated[index]) {
+                updated[index].url = downloadURL;
+                updated[index].uploadProgress = 100;
+              }
+              return { ...prev, videos: updated };
+            });
+          } else if (type === 'uploadDialog') {
+            setUploadVideos(prev => {
+              const updated = [...prev];
+              if (updated[index]) {
+                updated[index].url = downloadURL;
+                updated[index].uploadProgress = 100;
+              }
+              return updated;
+            });
+          }
+          setUploadQueue(prev => prev.slice(1));
+          setIsUploading(false);
+        }
+      );
+    };
+
+    processQueue();
+  }, [uploadQueue, isUploading]);
 
   // Fetch summary data
   useEffect(() => {
@@ -309,7 +396,7 @@ export default function Dashboard() {
         console.error('Error fetching summary data:', error);
       }
     };
-  
+
     fetchSummaryData();
   }, []);
 
@@ -331,103 +418,81 @@ export default function Dashboard() {
   // Handle video file upload for upload dialog
   const handleUploadDialogVideoFileChange = (file, index) => {
     if (!file) return;
-    const videoName = `${Date.now()}_${file.name}`;
-    const storageRef = ref(storage, `videos/${videoName}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
-
-    uploadTask.on('state_changed',
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        const updatedVideos = [...uploadVideos];
-        updatedVideos[index].uploadProgress = progress;
-        setUploadVideos(updatedVideos);
-      },
-      (error) => {
-        alert('Video upload failed: ' + error.message);
-      },
-      () => {
-        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-          const updatedVideos = [...uploadVideos];
-          updatedVideos[index].url = downloadURL;
-          updatedVideos[index].uploadProgress = 100;
-          setUploadVideos(updatedVideos);
-        });
-      }
-    );
+    setUploadQueue(prev => [...prev, { file, index, type: 'uploadDialog' }]);
   };
 
   const addUploadDialogVideo = () => {
-    setUploadVideos([...uploadVideos, { title: "", description: "", duration: "", file: null, uploadProgress: 0, url: "" }]);
+    setUploadVideos([...uploadVideos, { id: Date.now(), title: "", description: "", duration: "", file: null, uploadProgress: 0, url: "" }]);
   };
 
   const removeUploadDialogVideo = async (index: number) => {
-  const videoToRemove = uploadVideos[index];
-  try {
-    if (videoToRemove.id && selectedCourseId) {
-      await adminDeleteCourseMedia(parseInt(selectedCourseId, 10), videoToRemove.id);
-      console.log(`✅ Video ${videoToRemove.id} deleted successfully from server.`);
-    } else {
-      console.log("🟡 Video not uploaded yet, removing locally only.");
-    }
+    const videoToRemove = uploadVideos[index];
+    try {
+      if ((videoToRemove as any).id && selectedCourseId) {
+        await adminDeleteCourseMedia(parseInt(selectedCourseId, 10), (videoToRemove as any).id);
+        console.log(`✅ Video ${(videoToRemove as any).id} deleted successfully from server.`);
+      } else {
+        console.log("🟡 Video not uploaded yet, removing locally only.");
+      }
 
-    setUploadVideos(uploadVideos.filter((_, i) => i !== index));
-  } catch (error) {
-    console.error("❌ Failed to delete video:", error);
-  }
-};
+      setUploadVideos(uploadVideos.filter((_, i) => i !== index));
+    } catch (error) {
+      console.error("❌ Failed to delete video:", error);
+    }
+  };
 
 
   const handleUploadVideosToCourse = async () => {
-  if (!selectedCourseId) return;
+    if (!selectedCourseId) return;
 
-  try {
-    for (const [index, video] of uploadVideos.entries()) {
-      if (video.file) {
-        const formData = new FormData();
-        formData.append("course", selectedCourseId);
-        formData.append("file", video.file);
-        formData.append("media_type", "video");
-        formData.append("title", video.title || `Video ${index + 1}`);
-        formData.append("description", video.description || "");
-        formData.append("duration", video.duration || "1");
-        formData.append("order", String(index + 1));
+    try {
+      for (const [index, video] of uploadVideos.entries()) {
+        if (video.file) {
+          const formData = new FormData();
+          formData.append("course", selectedCourseId);
+          formData.append("file", video.file);
+          formData.append("media_type", "video");
+          formData.append("title", video.title || `Video ${index + 1}`);
+          formData.append("description", video.description || "");
+          formData.append("duration", video.duration || "1");
+          formData.append("order", String(index + 1));
 
-        await createCourseMedia(parseInt(selectedCourseId, 10), formData);
+          await createCourseMedia(parseInt(selectedCourseId, 10), formData);
+        }
       }
+
+      console.log("✅ All videos uploaded successfully!");
+
+      setCourses(courses.map(course => {
+        if (course.id.toString() === selectedCourseId) {
+          const newVideos = uploadVideos
+            .filter(v => v.url)
+            .map((v, i) => ({
+              id: Date.now() + i,
+              title: v.title,
+              description: v.description,
+              url: v.url,
+              duration: v.duration,
+              order: i + 1,
+            }));
+          return { ...course, videos: [...course.videos, ...newVideos] };
+        }
+        return course;
+      }));
+
+      const refreshed = await adminListCourses();
+      setApiCourses(refreshed.data.results || []);
+
+      setIsUploadVideoDialogOpen(false);
+      setSelectedCourseId("");
+      setUploadVideos([{ id: Date.now(), title: "", description: "", duration: "", file: null, uploadProgress: 0, url: "" }]);
+    } catch (error) {
+      console.error("❌ Error uploading videos:", error);
+      alert("Failed to upload videos. Please try again.");
     }
+  };
 
-    console.log("✅ All videos uploaded successfully!");
 
-    setCourses(courses.map(course => {
-      if (course.id.toString() === selectedCourseId) {
-        const newVideos = uploadVideos
-          .filter(v => v.url)
-          .map((v, i) => ({
-            id: Date.now() + i,
-            title: v.title,
-            description: v.description,
-            url: v.url,
-            duration: v.duration,
-            order: i + 1,
-          }));
-        return { ...course, videos: [...course.videos, ...newVideos] };
-      }
-      return course;
-    }));
-
-    const refreshed = await adminListCourses();
-    setApiCourses(refreshed.data.results || []);
-
-    setIsUploadVideoDialogOpen(false);
-    setSelectedCourseId("");
-    setUploadVideos([{ title: "", description: "", duration: "", file: null, uploadProgress: 0, url: "" }]);
-  } catch (error) {
-    console.error("❌ Error uploading videos:", error);
-    alert("Failed to upload videos. Please try again.");
-  }
-};
-
-  
   // New course form state
   const [newCourse, setNewCourse] = useState({
     title: "",
@@ -446,29 +511,7 @@ export default function Dashboard() {
   // Handle video file upload for edit dialog
   const handleEditVideoFileChange = (file, index) => {
     if (!file) return;
-    const videoName = `${Date.now()}_${file.name}`;
-    const storageRef = ref(storage, `videos/${videoName}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
-
-    uploadTask.on('state_changed',
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        const updatedVideos = [...editFormData.videos];
-        updatedVideos[index].uploadProgress = progress;
-        setEditFormData({ ...editFormData, videos: updatedVideos });
-      },
-      (error) => {
-        alert('Video upload failed: ' + error.message);
-      },
-      () => {
-        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-          const updatedVideos = [...editFormData.videos];
-          updatedVideos[index].url = downloadURL;
-          updatedVideos[index].uploadProgress = 100;
-          setEditFormData({ ...editFormData, videos: updatedVideos });
-        });
-      }
-    );
+    setUploadQueue(prev => [...prev, { file, index, type: 'edit' }]);
   };
 
   const openEditDialog = (course: CourseWithVideos) => {
@@ -481,122 +524,122 @@ export default function Dashboard() {
     setIsEditDialogOpen(true);
   };
 
-//   const handleSaveCourse = async () => {
-//   if (!editingCourse) return;
+  //   const handleSaveCourse = async () => {
+  //   if (!editingCourse) return;
 
-//   try {
-//     const payload = new FormData();
-//     payload.append("title", editFormData.title);
-//     payload.append("description", editFormData.description);
+  //   try {
+  //     const payload = new FormData();
+  //     payload.append("title", editFormData.title);
+  //     payload.append("description", editFormData.description);
 
-//     const res = await adminUpdateCourse(parseInt(editingCourse.id.toString(), 10), payload);
-//     const result = res?.data ?? {};
+  //     const res = await adminUpdateCourse(parseInt(editingCourse.id.toString(), 10), payload);
+  //     const result = res?.data ?? {};
 
-//     for (const [index, video] of editFormData.videos.entries()) {
-//       if (video.file) {
-//         const mediaFormData = new FormData();
-//         mediaFormData.append("course", editingCourse.id.toString());
-//         mediaFormData.append("file", video.file);
-//         mediaFormData.append("media_type", "video");
-//         mediaFormData.append("title", video.title || `Video ${index + 1}`);
-//         mediaFormData.append("description", video.description || "");
-//         mediaFormData.append("duration", video.duration || "0");
-//         mediaFormData.append("order", String(index + 1));
+  //     for (const [index, video] of editFormData.videos.entries()) {
+  //       if (video.file) {
+  //         const mediaFormData = new FormData();
+  //         mediaFormData.append("course", editingCourse.id.toString());
+  //         mediaFormData.append("file", video.file);
+  //         mediaFormData.append("media_type", "video");
+  //         mediaFormData.append("title", video.title || `Video ${index + 1}`);
+  //         mediaFormData.append("description", video.description || "");
+  //         mediaFormData.append("duration", video.duration || "0");
+  //         mediaFormData.append("order", String(index + 1));
 
-//         try {
-//           await createCourseMedia(parseInt(editingCourse.id.toString(), 10), mediaFormData);
-//           console.log(`✅ Uploaded video ${index + 1}: ${video.title}`);
-//         } catch (uploadError) {
-//           console.error(`❌ Failed to upload video ${video.title}:`, uploadError);
-//         }
-//       }
-//     }
+  //         try {
+  //           await createCourseMedia(parseInt(editingCourse.id.toString(), 10), mediaFormData);
+  //           console.log(`✅ Uploaded video ${index + 1}: ${video.title}`);
+  //         } catch (uploadError) {
+  //           console.error(`❌ Failed to upload video ${video.title}:`, uploadError);
+  //         }
+  //       }
+  //     }
 
-//     const updatedCourses = courses.map((course) =>
-//       course.id === editingCourse.id
-//         ? {
-//             ...course,
-//             title: result.title ?? editFormData.title,
-//             description: result.description ?? editFormData.description,
-//             videos: editFormData.videos,
-//           }
-//         : course
-//     );
-//     setCourses(updatedCourses);
+  //     const updatedCourses = courses.map((course) =>
+  //       course.id === editingCourse.id
+  //         ? {
+  //             ...course,
+  //             title: result.title ?? editFormData.title,
+  //             description: result.description ?? editFormData.description,
+  //             videos: editFormData.videos,
+  //           }
+  //         : course
+  //     );
+  //     setCourses(updatedCourses);
 
-//     const coursesResponse = await adminListCourses();
-//     setApiCourses(coursesResponse.data.results || []);
+  //     const coursesResponse = await adminListCourses();
+  //     setApiCourses(coursesResponse.data.results || []);
 
-//     setIsEditDialogOpen(false);
-//     setEditingCourse(null);
+  //     setIsEditDialogOpen(false);
+  //     setEditingCourse(null);
 
-//     console.log("✅ Course content and videos updated successfully!");
-//   } catch (error) {
-//     console.error("❌ Failed to update course content:", error);
-//   }
-// };
-const handleSaveCourse = async () => {
-  if (!editingCourse) return;
+  //     console.log("✅ Course content and videos updated successfully!");
+  //   } catch (error) {
+  //     console.error("❌ Failed to update course content:", error);
+  //   }
+  // };
+  const handleSaveCourse = async () => {
+    if (!editingCourse) return;
 
-  try {
-    // --- Update basic course info ---
-    const courseFormData = new FormData();
-    courseFormData.append("title", editFormData.title);
-    courseFormData.append("description", editFormData.description);
+    try {
+      // --- Update basic course info ---
+      const courseFormData = new FormData();
+      courseFormData.append("title", editFormData.title);
+      courseFormData.append("description", editFormData.description);
 
-    // send PATCH request
-    await adminUpdateCourse(parseInt(editingCourse.id.toString(), 10), courseFormData);
-    console.log("✅ Course info updated successfully");
+      // send PATCH request
+      await adminUpdateCourse(parseInt(editingCourse.id.toString(), 10), courseFormData);
+      console.log("✅ Course info updated successfully");
 
-    // --- Upload new videos if added ---
-    for (const [index, video] of editFormData.videos.entries()) {
-      if (video.file instanceof File) {
-        const mediaFormData = new FormData();
-        mediaFormData.append("course", editingCourse.id.toString());
-        mediaFormData.append("file", video.file);
-        mediaFormData.append("media_type", "video");
-        mediaFormData.append("title", video.title || `Video ${index + 1}`);
-        mediaFormData.append("description", video.description || "");
-        mediaFormData.append("duration", video.duration || "0");
-        mediaFormData.append("order", String(index + 1));
+      // --- Upload new videos if added ---
+      for (const [index, video] of editFormData.videos.entries()) {
+        if (video.file instanceof File) {
+          const mediaFormData = new FormData();
+          mediaFormData.append("course", editingCourse.id.toString());
+          mediaFormData.append("file", video.file);
+          mediaFormData.append("media_type", "video");
+          mediaFormData.append("title", video.title || `Video ${index + 1}`);
+          mediaFormData.append("description", video.description || "");
+          mediaFormData.append("duration", video.duration || "0");
+          mediaFormData.append("order", String(index + 1));
 
-        try {
-          const mediaRes = await createCourseMedia(parseInt(editingCourse.id.toString(), 10), mediaFormData);
-          console.log(`✅ Uploaded video ${index + 1}: ${mediaRes.data.title}`);
-        } catch (uploadError) {
-          console.error(`❌ Failed to upload video ${video.title}:`, uploadError);
+          try {
+            const mediaRes = await createCourseMedia(parseInt(editingCourse.id.toString(), 10), mediaFormData);
+            console.log(`✅ Uploaded video ${index + 1}: ${mediaRes.data.title}`);
+          } catch (uploadError) {
+            console.error(`❌ Failed to upload video ${video.title}:`, uploadError);
+          }
         }
       }
-    }
 
-    // --- Refresh course list after editing ---
-    const updatedCoursesResponse = await adminListCourses();
-    const updatedCourses = updatedCoursesResponse.data.results || [];
-    setApiCourses(updatedCourses);
+      // --- Refresh course list after editing ---
+      const updatedCoursesResponse = await adminListCourses();
+      const updatedCourses = updatedCoursesResponse.data.results || [];
+      setApiCourses(updatedCourses);
 
-    // Update local course list for instant UI reflection
-    setCourses((prev) =>
-      prev.map((course) =>
-        course.id === editingCourse.id
-          ? {
+      // Update local course list for instant UI reflection
+      setCourses((prev) =>
+        prev.map((course) =>
+          course.id === editingCourse.id
+            ? {
               ...course,
               title: editFormData.title,
               description: editFormData.description,
               videos: editFormData.videos,
             }
-          : course
-      )
-    );
+            : course
+        )
+      );
 
-    setIsEditDialogOpen(false);
-    setEditingCourse(null);
+      setIsEditDialogOpen(false);
+      setEditingCourse(null);
 
-    alert("✅ Course and videos updated successfully!");
-  } catch (error) {
-    console.error("❌ Failed to update course:", error);
-    alert("Failed to update course. Please try again.");
-  }
-};
+      alert("✅ Course and videos updated successfully!");
+    } catch (error) {
+      console.error("❌ Failed to update course:", error);
+      alert("Failed to update course. Please try again.");
+    }
+  };
 
 
 
@@ -625,7 +668,7 @@ const handleSaveCourse = async () => {
     };
 
     setCourses([...courses, newCourseData]);
-    
+
     // Refresh API courses data to show changes
     try {
       const coursesResponse = await adminListCourses();
@@ -633,7 +676,7 @@ const handleSaveCourse = async () => {
     } catch (error) {
       console.error("❌ Failed to refresh courses data:", error);
     }
-    
+
     setIsAddCourseDialogOpen(false);
     setNewCourse({
       title: "",
@@ -653,29 +696,7 @@ const handleSaveCourse = async () => {
   // Handle video file upload
   const handleVideoFileChange = (file, index) => {
     if (!file) return;
-    const videoName = `${Date.now()}_${file.name}`;
-    const storageRef = ref(storage, `videos/${videoName}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
-
-    uploadTask.on('state_changed',
-      (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        const updatedVideos = [...newCourse.videos];
-        updatedVideos[index].uploadProgress = progress;
-        setNewCourse({ ...newCourse, videos: updatedVideos });
-      },
-      (error) => {
-        alert('Video upload failed: ' + error.message);
-      },
-      () => {
-        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-          const updatedVideos = [...newCourse.videos];
-          updatedVideos[index].url = downloadURL;
-          updatedVideos[index].uploadProgress = 100;
-          setNewCourse({ ...newCourse, videos: updatedVideos });
-        });
-      }
-    );
+    setUploadQueue(prev => [...prev, { file, index, type: 'new' }]);
   };
 
   const addVideoToEditCourse = () => {
@@ -692,28 +713,28 @@ const handleSaveCourse = async () => {
     });
   };
 
- const removeVideoFromEditCourse = async (videoId: number) => {
-  if (!editingCourse) {
-    console.error("❌ No course selected for editing.");
-    return;
-  }
+  const removeVideoFromEditCourse = async (videoId: number) => {
+    if (!editingCourse) {
+      console.error("❌ No course selected for editing.");
+      return;
+    }
 
 
-  try {
-    await adminDeleteCourseMedia(editingCourse.id, videoId);
-    console.log(`✅ Video ${videoId} deleted successfully from server.`);
+    try {
+      await adminDeleteCourseMedia(editingCourse.id, videoId);
+      console.log(`✅ Video ${videoId} deleted successfully from server.`);
 
-    setEditFormData({
-      ...editFormData,
-      videos: editFormData.videos.filter(video => video.id !== videoId),
-    });
+      setEditFormData({
+        ...editFormData,
+        videos: editFormData.videos.filter(video => video.id !== videoId),
+      });
 
-    const refreshed = await adminListCourses();
-    setApiCourses(refreshed.data.results || []);
-  } catch (error) {
-    console.error("❌ Failed to delete video:", error);
-  }
-};
+      const refreshed = await adminListCourses();
+      setApiCourses(refreshed.data.results || []);
+    } catch (error) {
+      console.error("❌ Failed to delete video:", error);
+    }
+  };
 
 
 
@@ -739,30 +760,30 @@ const handleSaveCourse = async () => {
               // formData.append('status', newCourse.status);
               // formData.append('category', newCourse.category);
               // formData.append('duration', newCourse.duration);
-              
+
               // // Add thumbnail if available
               // if (newCourse.thumbnailFile) {
               //   formData.append('thumbnail', newCourse.thumbnailFile);
               // }
               formData.append('title', newCourse.title);
-formData.append('description', newCourse.description);
-formData.append('price', newCourse.price || '0.00');
+              formData.append('description', newCourse.description);
+              formData.append('price', newCourse.price || '0.00');
 
-const statusMap: Record<string, string> = {
-  active: 'published',
-  draft: 'draft',
-  archived: 'archived',
-};
-formData.append('status', statusMap[newCourse.status] ?? 'draft');
+              const statusMap: Record<string, string> = {
+                active: 'published',
+                draft: 'draft',
+                archived: 'archived',
+              };
+              formData.append('status', statusMap[newCourse.status] ?? 'draft');
 
-if (newCourse.category) formData.append('category', newCourse.category);
-if (newCourse.duration) formData.append('duration', newCourse.duration);
-if (newCourse.nextCourseRecommendation)
-  formData.append('next_course_recommendation', newCourse.nextCourseRecommendation);
+              if (newCourse.category) formData.append('category', newCourse.category);
+              if (newCourse.duration) formData.append('duration', newCourse.duration);
+              if (newCourse.nextCourseRecommendation)
+                formData.append('next_course_recommendation', newCourse.nextCourseRecommendation);
 
-formData.append('instructors', JSON.stringify(newCourse.instructors.filter(i => i.trim() !== '')));
+              formData.append('instructors', JSON.stringify(newCourse.instructors.filter(i => i.trim() !== '')));
 
-if (newCourse.thumbnailFile) formData.append('thumbnail', newCourse.thumbnailFile);
+              if (newCourse.thumbnailFile) formData.append('thumbnail', newCourse.thumbnailFile);
 
 
               // Create the course first (without videos)
@@ -785,7 +806,7 @@ if (newCourse.thumbnailFile) formData.append('thumbnail', newCourse.thumbnailFil
                     mediaFormData.append('description', video.description || '');
                     mediaFormData.append('duration', video.duration || '0:00');
                     mediaFormData.append('order', String(video.order || uploadedVideos.length + 1));
-                    
+
                     try {
                       const mediaResponse = await createCourseMedia(courseId, mediaFormData);
                       uploadedVideos.push({
@@ -821,11 +842,11 @@ if (newCourse.thumbnailFile) formData.append('thumbnail', newCourse.thumbnailFil
               };
 
               setCourses([...courses, courseWithVideos]);
-              
+
               // Refresh API courses data
               const coursesResponse = await adminListCourses();
               setApiCourses(coursesResponse.data.results || []);
-              
+
               console.log("✅ Course created successfully with", uploadedVideos.length, "videos!");
               return true;
             } catch (error) {
@@ -1101,8 +1122,8 @@ if (newCourse.thumbnailFile) formData.append('thumbnail', newCourse.thumbnailFil
                       {course.status}
                     </Badge>
                   </div>
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     className="w-full text-xs h-7"
                     onClick={() => {
                       // Convert API course to CourseWithVideos format for editing
@@ -1142,298 +1163,298 @@ if (newCourse.thumbnailFile) formData.append('thumbnail', newCourse.thumbnailFil
       </div>
 
       {/* Quick Actions */}
-       <div className="relative">
-            <div className="absolute inset-0 backdrop-blur-[1px] bg-white/70 z-10 pointer-events-none rounded-lg"></div>
-            <Card className="opacity-80">
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>
-            Common tasks and shortcuts
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Button variant="outline" className="h-20 flex-col" onClick={() => setIsAddCourseDialogOpen(true)}>
-              <BookOpen className="w-6 h-6 mb-2" />
-              <span>Add New Course</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex-col" onClick={() => setIsUploadVideoDialogOpen(true)}>
-              <Edit className="w-6 h-6 mb-2" />
-              <span>Edit Course</span>
-            </Button>
-      {/* Upload Videos Dialog */}
-      <Dialog open={isUploadVideoDialogOpen} onOpenChange={setIsUploadVideoDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Upload Videos to Course</DialogTitle>
-            <DialogDescription>
-              Select a course and upload one or more videos.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="select-course">Select Course</Label>
-              <select
-                id="select-course"
-                className="w-full border rounded px-2 py-1"
-                value={selectedCourseId}
-                onChange={e => setSelectedCourseId(e.target.value)}
-              >
-                <option value="">-- Select a course --</option>
-                {apiCourses.map(course => (
-                  <option key={course.id} value={course.id}>{course.title}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-base font-medium">Videos</Label>
-                <Button type="button" size="sm" onClick={addUploadDialogVideo}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Video
-                </Button>
-              </div>
-              {uploadVideos.map((video, index) => (
-                <div key={index} className="p-4 border rounded-lg space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium">Video {index + 1}</h4>
-                    {uploadVideos.length > 1 && (
-                      <Button type="button" variant="ghost" size="sm" onClick={() => removeUploadDialogVideo(index)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
+      <div className="relative">
+        <div className="absolute inset-0 backdrop-blur-[1px] bg-white/70 z-10 pointer-events-none rounded-lg"></div>
+        <Card className="opacity-80">
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>
+              Common tasks and shortcuts
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Button variant="outline" className="h-20 flex-col" onClick={() => setIsAddCourseDialogOpen(true)}>
+                <BookOpen className="w-6 h-6 mb-2" />
+                <span>Add New Course</span>
+              </Button>
+              <Button variant="outline" className="h-20 flex-col" onClick={() => setIsUploadVideoDialogOpen(true)}>
+                <Edit className="w-6 h-6 mb-2" />
+                <span>Edit Course</span>
+              </Button>
+              {/* Upload Videos Dialog */}
+              <Dialog open={isUploadVideoDialogOpen} onOpenChange={setIsUploadVideoDialogOpen}>
+                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Upload Videos to Course</DialogTitle>
+                    <DialogDescription>
+                      Select a course and upload one or more videos.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Video Title</Label>
-                      <Input
-                        value={video.title}
-                        onChange={e => {
-                          const updated = [...uploadVideos];
-                          updated[index].title = e.target.value;
-                          setUploadVideos(updated);
-                        }}
-                        placeholder="Video title"
-                      />
+                      <Label htmlFor="select-course">Select Course</Label>
+                      <select
+                        id="select-course"
+                        className="w-full border rounded px-2 py-1"
+                        value={selectedCourseId}
+                        onChange={e => setSelectedCourseId(e.target.value)}
+                      >
+                        <option value="">-- Select a course --</option>
+                        {apiCourses.map(course => (
+                          <option key={course.id} value={course.id}>{course.title}</option>
+                        ))}
+                      </select>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Duration</Label>
-                      <Input
-                        value={video.duration}
-                        onChange={e => {
-                          const updated = [...uploadVideos];
-                          updated[index].duration = e.target.value;
-                          setUploadVideos(updated);
-                        }}
-                        placeholder="e.g. 25:30"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Video Description</Label>
-                    <Textarea
-                      value={video.description}
-                      onChange={e => {
-                        const updated = [...uploadVideos];
-                        updated[index].description = e.target.value;
-                        setUploadVideos(updated);
-                      }}
-                      placeholder="Video description"
-                      rows={2}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                      <Label>Upload Video File</Label>
-                      <Input
-                          type="file"
-                          accept="video/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const updated = [...uploadVideos];
-                              updated[index].file = file;
-                              updated[index].url = URL.createObjectURL(file);
-                              setUploadVideos(updated);
-                            }
-                          }}
-                        />
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base font-medium">Videos</Label>
+                        <Button type="button" size="sm" onClick={addUploadDialogVideo}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Video
+                        </Button>
+                      </div>
+                      {uploadVideos.map((video, index) => (
+                        <div key={index} className="p-4 border rounded-lg space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium">Video {index + 1}</h4>
+                            {uploadVideos.length > 1 && (
+                              <Button type="button" variant="ghost" size="sm" onClick={() => removeUploadDialogVideo(index)}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                              <Label>Video Title</Label>
+                              <Input
+                                value={video.title}
+                                onChange={e => {
+                                  const updated = [...uploadVideos];
+                                  updated[index].title = e.target.value;
+                                  setUploadVideos(updated);
+                                }}
+                                placeholder="Video title"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Duration</Label>
+                              <Input
+                                value={video.duration}
+                                onChange={e => {
+                                  const updated = [...uploadVideos];
+                                  updated[index].duration = e.target.value;
+                                  setUploadVideos(updated);
+                                }}
+                                placeholder="e.g. 25:30"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Video Description</Label>
+                            <Textarea
+                              value={video.description}
+                              onChange={e => {
+                                const updated = [...uploadVideos];
+                                updated[index].description = e.target.value;
+                                setUploadVideos(updated);
+                              }}
+                              placeholder="Video description"
+                              rows={2}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Upload Video File</Label>
+                            <Input
+                              type="file"
+                              accept="video/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const updated = [...uploadVideos];
+                                  updated[index].file = file;
+                                  updated[index].url = URL.createObjectURL(file);
+                                  setUploadVideos(updated);
+                                }
+                              }}
+                            />
 
-                      {video.url && (
-                        <video
-                          src={video.url}
-                          controls
-                          className="w-full mt-2 rounded-md border border-border"
-                        />
-                        )}
+                            {video.url && (
+                              <video
+                                src={video.url}
+                                controls
+                                className="w-full mt-2 rounded-md border border-border"
+                              />
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button variant="outline" onClick={() => setIsUploadVideoDialogOpen(false)}>
-                Cancel
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button variant="outline" onClick={() => setIsUploadVideoDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleUploadVideosToCourse} disabled={!selectedCourseId || uploadVideos.some(v => !v.url)}>
+                        Upload to Course
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Button variant="outline" className="h-20 flex-col" onClick={() => setIsScheduleEventDialogOpen(true)}>
+                <Calendar className="w-6 h-6 mb-2" />
+                <span>Schedule Event</span>
               </Button>
-              <Button onClick={handleUploadVideosToCourse} disabled={!selectedCourseId || uploadVideos.some(v => !v.url)}>
-                Upload to Course
+              {/* Schedule Event Dialog */}
+              <Dialog open={isScheduleEventDialogOpen} onOpenChange={setIsScheduleEventDialogOpen}>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Schedule New Event</DialogTitle>
+                    <DialogDescription>
+                      Create and schedule an event for a course.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="event-title">Event Title</Label>
+                      <Input
+                        id="event-title"
+                        value={eventForm.title}
+                        onChange={e => setEventForm({ ...eventForm, title: e.target.value })}
+                        placeholder="Enter event title"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="event-date">Date</Label>
+                        <Input
+                          id="event-date"
+                          type="date"
+                          value={eventForm.date}
+                          onChange={e => setEventForm({ ...eventForm, date: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="event-time">Time</Label>
+                        <Input
+                          id="event-time"
+                          type="time"
+                          value={eventForm.time}
+                          onChange={e => setEventForm({ ...eventForm, time: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="event-course">Related Course</Label>
+                      <select
+                        id="event-course"
+                        className="w-full border rounded px-2 py-1"
+                        value={eventForm.courseId}
+                        onChange={e => setEventForm({ ...eventForm, courseId: e.target.value })}
+                      >
+                        <option value="">-- Select a course (optional) --</option>
+                        {apiCourses.map(course => (
+                          <option key={course.id} value={course.id}>{course.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="event-description">Description</Label>
+                      <Textarea
+                        id="event-description"
+                        value={eventForm.description}
+                        onChange={e => setEventForm({ ...eventForm, description: e.target.value })}
+                        placeholder="Event description"
+                        rows={2}
+                      />
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button variant="outline" onClick={() => setIsScheduleEventDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setScheduledEvents([...scheduledEvents, { ...eventForm, id: Date.now() }]);
+                          setIsScheduleEventDialogOpen(false);
+                          setEventForm({ title: '', date: '', time: '', description: '', courseId: '' });
+                        }}
+                        disabled={!eventForm.title || !eventForm.date || !eventForm.time}
+                      >
+                        Schedule
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Button variant="outline" className="h-20 flex-col" onClick={() => setIsIssueCertificateDialogOpen(true)}>
+                <Award className="w-6 h-6 mb-2" />
+                <span>Issue Certificate</span>
               </Button>
+              {/* Issue Certificate Dialog */}
+              <Dialog open={isIssueCertificateDialogOpen} onOpenChange={setIsIssueCertificateDialogOpen}>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Issue Certificate</DialogTitle>
+                    <DialogDescription>
+                      Select a course and enter student details to issue a certificate.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="cert-student">Student Name or Email</Label>
+                      <Input
+                        id="cert-student"
+                        value={certificateForm.student}
+                        onChange={e => setCertificateForm({ ...certificateForm, student: e.target.value })}
+                        placeholder="Enter student name or email"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cert-course">Course</Label>
+                      <select
+                        id="cert-course"
+                        className="w-full border rounded px-2 py-1"
+                        value={certificateForm.courseId}
+                        onChange={e => setCertificateForm({ ...certificateForm, courseId: e.target.value })}
+                      >
+                        <option value="">-- Select a course --</option>
+                        {apiCourses.map(course => (
+                          <option key={course.id} value={course.id}>{course.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cert-date">Date</Label>
+                      <Input
+                        id="cert-date"
+                        type="date"
+                        value={certificateForm.date}
+                        onChange={e => setCertificateForm({ ...certificateForm, date: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button variant="outline" onClick={() => setIsIssueCertificateDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setCertificates([...certificates, { ...certificateForm, id: Date.now() }]);
+                          setIsIssueCertificateDialogOpen(false);
+                          setCertificateForm({ student: '', courseId: '', date: '' });
+                        }}
+                        disabled={!certificateForm.student || !certificateForm.courseId || !certificateForm.date}
+                      >
+                        Issue
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-            <Button variant="outline" className="h-20 flex-col" onClick={() => setIsScheduleEventDialogOpen(true)}>
-              <Calendar className="w-6 h-6 mb-2" />
-              <span>Schedule Event</span>
-            </Button>
-      {/* Schedule Event Dialog */}
-      <Dialog open={isScheduleEventDialogOpen} onOpenChange={setIsScheduleEventDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Schedule New Event</DialogTitle>
-            <DialogDescription>
-              Create and schedule an event for a course.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="event-title">Event Title</Label>
-              <Input
-                id="event-title"
-                value={eventForm.title}
-                onChange={e => setEventForm({ ...eventForm, title: e.target.value })}
-                placeholder="Enter event title"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="event-date">Date</Label>
-                <Input
-                  id="event-date"
-                  type="date"
-                  value={eventForm.date}
-                  onChange={e => setEventForm({ ...eventForm, date: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="event-time">Time</Label>
-                <Input
-                  id="event-time"
-                  type="time"
-                  value={eventForm.time}
-                  onChange={e => setEventForm({ ...eventForm, time: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="event-course">Related Course</Label>
-              <select
-                id="event-course"
-                className="w-full border rounded px-2 py-1"
-                value={eventForm.courseId}
-                onChange={e => setEventForm({ ...eventForm, courseId: e.target.value })}
-              >
-                <option value="">-- Select a course (optional) --</option>
-                {apiCourses.map(course => (
-                  <option key={course.id} value={course.id}>{course.title}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="event-description">Description</Label>
-              <Textarea
-                id="event-description"
-                value={eventForm.description}
-                onChange={e => setEventForm({ ...eventForm, description: e.target.value })}
-                placeholder="Event description"
-                rows={2}
-              />
-            </div>
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button variant="outline" onClick={() => setIsScheduleEventDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  setScheduledEvents([...scheduledEvents, { ...eventForm, id: Date.now() }]);
-                  setIsScheduleEventDialogOpen(false);
-                  setEventForm({ title: '', date: '', time: '', description: '', courseId: '' });
-                }}
-                disabled={!eventForm.title || !eventForm.date || !eventForm.time}
-              >
-                Schedule
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-            <Button variant="outline" className="h-20 flex-col" onClick={() => setIsIssueCertificateDialogOpen(true)}>
-              <Award className="w-6 h-6 mb-2" />
-              <span>Issue Certificate</span>
-            </Button>
-      {/* Issue Certificate Dialog */}
-      <Dialog open={isIssueCertificateDialogOpen} onOpenChange={setIsIssueCertificateDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Issue Certificate</DialogTitle>
-            <DialogDescription>
-              Select a course and enter student details to issue a certificate.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="cert-student">Student Name or Email</Label>
-              <Input
-                id="cert-student"
-                value={certificateForm.student}
-                onChange={e => setCertificateForm({ ...certificateForm, student: e.target.value })}
-                placeholder="Enter student name or email"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cert-course">Course</Label>
-              <select
-                id="cert-course"
-                className="w-full border rounded px-2 py-1"
-                value={certificateForm.courseId}
-                onChange={e => setCertificateForm({ ...certificateForm, courseId: e.target.value })}
-              >
-                <option value="">-- Select a course --</option>
-                {apiCourses.map(course => (
-                  <option key={course.id} value={course.id}>{course.title}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cert-date">Date</Label>
-              <Input
-                id="cert-date"
-                type="date"
-                value={certificateForm.date}
-                onChange={e => setCertificateForm({ ...certificateForm, date: e.target.value })}
-              />
-            </div>
-            <div className="flex justify-end space-x-2 pt-4">
-              <Button variant="outline" onClick={() => setIsIssueCertificateDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  setCertificates([...certificates, { ...certificateForm, id: Date.now() }]);
-                  setIsIssueCertificateDialogOpen(false);
-                  setCertificateForm({ student: '', courseId: '', date: '' });
-                }}
-                disabled={!certificateForm.student || !certificateForm.courseId || !certificateForm.date}
-              >
-                Issue
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
       </div>
-     
+
 
       {/* Edit Course Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -1452,7 +1473,7 @@ if (newCourse.thumbnailFile) formData.append('thumbnail', newCourse.thumbnailFil
                   placeholder="Enter course title"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="edit-description">Description</Label>
                 <Textarea
@@ -1472,14 +1493,14 @@ if (newCourse.thumbnailFile) formData.append('thumbnail', newCourse.thumbnailFil
                     Add Video
                   </Button>
                 </div>
-                
+
                 {editFormData.videos.map((video, index) => (
                   <div key={video.id} className="p-4 border rounded-lg space-y-3">
                     <div className="flex items-center justify-between">
                       <h4 className="font-medium">Video {index + 1}</h4>
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
+                      <Button
+                        type="button"
+                        variant="ghost"
                         size="sm"
                         onClick={() => removeVideoFromEditCourse(video.id)}
                       >
@@ -1529,29 +1550,29 @@ if (newCourse.thumbnailFile) formData.append('thumbnail', newCourse.thumbnailFil
                       />
                     </div>
                     <div className="space-y-2">
-                          <Label>Upload Video File</Label>
-                          <Input
-                          type="file"
-                          accept="video/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const updatedVideos = editFormData.videos.map((v) =>
-                                v.id === video.id ? { ...v, file, url: URL.createObjectURL(file) } : v
-                              );
-                              setEditFormData({ ...editFormData, videos: updatedVideos });
-                            }
-                          }}
+                      <Label>Upload Video File</Label>
+                      <Input
+                        type="file"
+                        accept="video/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const updatedVideos = editFormData.videos.map((v) =>
+                              v.id === video.id ? { ...v, file, url: URL.createObjectURL(file) } : v
+                            );
+                            setEditFormData({ ...editFormData, videos: updatedVideos });
+                          }
+                        }}
+                      />
+                      {video.url && (
+                        <video
+                          src={video.url}
+                          controls
+                          className="w-full mt-2 rounded-md border border-border"
                         />
-                        {video.url && (
-                          <video
-                            src={video.url}
-                            controls
-                            className="w-full mt-2 rounded-md border border-border"
-                          />
-                            )}
+                      )}
 
-                                          </div>
+                    </div>
                   </div>
                 ))}
               </div>
