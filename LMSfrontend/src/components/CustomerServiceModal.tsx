@@ -134,7 +134,7 @@ export default function CustomerServiceModal({ isOpen, onClose }: CustomerServic
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-lg border border-border">
                 <div className="flex items-center gap-2">
                   <User className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">{user?.username}</span>
+                  <span className="text-sm font-medium">{user?.email}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Mail className="w-4 h-4 text-muted-foreground" />

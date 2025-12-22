@@ -92,36 +92,6 @@ const uploadWithProgress = (url: string, file: File, courseFolder: string, onPro
   });
 };
 
-const compressVideo = async (file: File, onProgress?: (msg: string) => void): Promise<File | Blob> => {
-  const win = window as any;
-
-  if (typeof SharedArrayBuffer === 'undefined') {
-    return file;
-  }
-
-  if (!win.FFmpeg) {
-    return file;
-  }
-
-  try {
-    const { createFFmpeg, fetchFile } = win.FFmpeg;
-    const ffmpeg = createFFmpeg({ log: false });
-
-    onProgress?.("Loading compressor...");
-    await ffmpeg.load();
-
-    onProgress?.("Compressing...");
-    ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
-
-    await ffmpeg.run('-i', 'input.mp4', '-vcodec', 'libx264', '-crf', '28', '-preset', 'veryfast', 'output.mp4');
-
-    const data = ffmpeg.FS('readFile', 'output.mp4');
-    return new File([data.buffer], file.name, { type: 'video/mp4' });
-  } catch (error) {
-    return file;
-  }
-};
-
 export default function Courses() {
   const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
@@ -170,7 +140,7 @@ export default function Courses() {
   const [contentFormData, setContentFormData] = useState({
     title: "",
     description: "",
-    videos: [] as (VideoContent & { isUploaded?: boolean })[]
+    videos: [] as (VideoContent & { isUploaded?: boolean; uploadProgress?: number; file?: File | null })[]
   });
 
   const filteredCourses = courses.filter((course) => {
@@ -318,51 +288,52 @@ export default function Courses() {
 
       const courseFolder = slugify(contentFormData.title);
 
-      for (const video of contentFormData.videos) {
-        if (video.file) {
-          const sessionFolder = video.session ? slugify(video.session) : 'general';
-          const fullFolderPath = `${courseFolder}/${sessionFolder}`;
+      // Parallel uploads for faster processing
+      const uploadPromises = contentFormData.videos.map(async (video, index) => {
+        if (!video.file) return null;
 
-          try {
-            const fileToUpload = await compressVideo(video.file);
+        const sessionFolder = video.session ? slugify(video.session) : 'general';
+        const fullFolderPath = `${courseFolder}/${sessionFolder}`;
 
-            const uploadResult = await uploadWithProgress(
-              import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/upload.php',
-              fileToUpload as File,
-              fullFolderPath,
-              (progress) => {
-                setContentFormData(prev => ({
-                  ...prev,
-                  videos: prev.videos.map(v => v.id === video.id ? { ...v, uploadProgress: progress } : v)
-                }));
-              }
-            );
-
-            if (uploadResult.status === 'success') {
-              const mediaForm = new FormData();
-              mediaForm.append("course", String(courseId));
-              mediaForm.append("file", uploadResult.url);
-              mediaForm.append("media_type", "video");
-              mediaForm.append("title", video.title || `Video`);
-              mediaForm.append("description", video.description || "");
-              mediaForm.append("duration", video.duration || "0:00");
-              mediaForm.append("order", String(video.order || 0));
-              mediaForm.append("session", video.session || "");
-
-              await createCourseMedia(courseId, mediaForm);
-
+        try {
+          const uploadResult = await uploadWithProgress(
+            import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/hostinger_upload.php',
+            video.file,
+            fullFolderPath,
+            (progress) => {
               setContentFormData(prev => ({
                 ...prev,
-                videos: prev.videos.map(v => v.id === video.id ? { ...v, isUploaded: true } : v)
+                videos: prev.videos.map(v => v.id === video.id ? { ...v, uploadProgress: progress } : v)
               }));
-            } else {
-              alert(`Upload failed for ${video.title}: ${uploadResult.message}`);
             }
-          } catch (uploadErr) {
-            alert(`Failed to upload video "${video.title}".`);
+          );
+
+          if (uploadResult.status === 'success') {
+            const mediaForm = new FormData();
+            mediaForm.append("course", String(courseId));
+            mediaForm.append("file", uploadResult.url);
+            mediaForm.append("media_type", "video");
+            mediaForm.append("title", video.title || `Video`);
+            mediaForm.append("description", video.description || "");
+            mediaForm.append("duration", video.duration || "0:00");
+            mediaForm.append("order", String(video.order || index + 1));
+            mediaForm.append("session", video.session || "");
+
+            await createCourseMedia(courseId, mediaForm);
+
+            setContentFormData(prev => ({
+              ...prev,
+              videos: prev.videos.map(v => v.id === video.id ? { ...v, isUploaded: true } : v)
+            }));
+            return true;
           }
+        } catch (uploadErr) {
+          console.error(`Failed to upload video "${video.title}":`, uploadErr);
         }
-      }
+        return false;
+      });
+
+      await Promise.all(uploadPromises);
 
       setCourses((prevCourses) =>
         prevCourses.map((course) =>
@@ -563,53 +534,52 @@ export default function Courses() {
               const courseId = createdCourse.id;
 
               const courseFolder = slugify(newCourse.title);
-              const uploadedVideos = [];
 
-              for (const video of newCourse.videos) {
-                if (video.file) {
-                  const sessionFolder = video.session ? slugify(video.session) : 'general';
-                  const fullFolderPath = `${courseFolder}/${sessionFolder}`;
+              // Parallel uploads for faster processing
+              const uploadPromises = newCourse.videos.map(async (video, index) => {
+                if (!video.file) return null;
 
-                  try {
-                    const fileToUpload = await compressVideo(video.file, (msg) => {
-                      console.log(`Video ${video.id} compression: ${msg}`);
-                    });
+                const sessionFolder = video.session ? slugify(video.session) : 'general';
+                const fullFolderPath = `${courseFolder}/${sessionFolder}`;
 
-                    const uploadResult = await uploadWithProgress(
-                      import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/hostinger_upload.php',
-                      fileToUpload as File,
-                      fullFolderPath,
-                      (progress) => {
-                        onProgress(video.id, progress);
-                      }
-                    );
-
-                    if (uploadResult.status === 'success') {
-                      const mediaFormData = new FormData();
-                      mediaFormData.append('course', String(courseId));
-                      mediaFormData.append('file', uploadResult.url);
-                      mediaFormData.append('media_type', 'video');
-                      mediaFormData.append('title', video.title || video.file.name);
-                      mediaFormData.append('description', video.description || '');
-                      mediaFormData.append('duration', video.duration || '0:00');
-                      mediaFormData.append('order', String(video.order || 0));
-                      mediaFormData.append('session', video.session || "");
-
-                      const mediaResponse = await createCourseMedia(courseId, mediaFormData);
-                      uploadedVideos.push({
-                        id: mediaResponse.data.id,
-                        title: mediaResponse.data.title,
-                        description: mediaResponse.data.title,
-                        url: uploadResult.url,
-                        duration: mediaResponse.data.duration || "0:00",
-                        order: mediaResponse.data.order || 0,
-                      });
+                try {
+                  const uploadResult = await uploadWithProgress(
+                    import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/hostinger_upload.php',
+                    video.file,
+                    fullFolderPath,
+                    (progress) => {
+                      onProgress(video.id, progress);
                     }
-                  } catch (mediaError) {
-                    console.error("Failed to upload video:", mediaError);
+                  );
+
+                  if (uploadResult.status === 'success') {
+                    const mediaFormData = new FormData();
+                    mediaFormData.append('course', String(courseId));
+                    mediaFormData.append('file', uploadResult.url);
+                    mediaFormData.append('media_type', 'video');
+                    mediaFormData.append('title', video.title || video.file.name);
+                    mediaFormData.append('description', video.description || '');
+                    mediaFormData.append('duration', video.duration || '0:00');
+                    mediaFormData.append('order', String(video.order || index + 1));
+                    mediaFormData.append('session', video.session || "");
+
+                    const mediaResponse = await createCourseMedia(courseId, mediaFormData);
+                    return {
+                      id: mediaResponse.data.id,
+                      title: mediaResponse.data.title,
+                      description: mediaResponse.data.title,
+                      url: mediaResponse.data.file,
+                      duration: mediaResponse.data.duration || "0:00",
+                      order: mediaResponse.data.order || index + 1,
+                    };
                   }
+                } catch (mediaError) {
+                  console.error("❌ Failed to upload video:", video.title, mediaError);
                 }
-              }
+                return null;
+              });
+
+              const uploadedVideos = (await Promise.all(uploadPromises)).filter(v => v !== null);
 
               const courseWithVideos: Course = {
                 id: String(createdCourse.id),
@@ -640,21 +610,16 @@ export default function Courses() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search courses or instructors..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
+        <CardContent className="p-6">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search courses or instructors..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-40">
