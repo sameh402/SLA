@@ -70,17 +70,6 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Use Hostinger FTP for media storage in production
-DEFAULT_FILE_STORAGE = 'courses.storage.HostingerVideoStorage'
-
-# Hostinger FTP Settings (inherited from settings.py or environment)
-HOSTINGER_FTP_HOST = config('HOSTINGER_FTP_HOST', default=HOSTINGER_FTP_HOST)
-HOSTINGER_FTP_USER = config('HOSTINGER_FTP_USER', default=HOSTINGER_FTP_USER)
-HOSTINGER_FTP_PASSWORD = config('HOSTINGER_FTP_PASSWORD', default=HOSTINGER_FTP_PASSWORD)
-HOSTINGER_FTP_PORT = config('HOSTINGER_FTP_PORT', default=HOSTINGER_FTP_PORT, cast=int)
-HOSTINGER_FTP_ROOT = config('HOSTINGER_FTP_ROOT', default=HOSTINGER_FTP_ROOT)
-HOSTINGER_BASE_URL = config('HOSTINGER_BASE_URL', default=HOSTINGER_BASE_URL)
-
 # Security settings
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
