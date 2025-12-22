@@ -73,8 +73,7 @@ def fix_admin(request):
         return HttpResponse(f"❌ ERROR: {str(e)}")
 
 urlpatterns = [
-	path('sla-backend-management-portal-99/', admin.site.urls),
-    path('fix-admin/', fix_admin), # TEMP FIX
+    path('admin/', admin.site.urls),
 	# Health
 	path('api/health/', health_view),
 	# Auth
