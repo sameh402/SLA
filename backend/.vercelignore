@@ -10,3 +10,6 @@ db.sqlite3
 .git/
 .vercel/
 node_modules/
+build.sh
+*.log
+logs/
