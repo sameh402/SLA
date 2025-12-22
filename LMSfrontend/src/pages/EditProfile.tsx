@@ -172,7 +172,7 @@ export default function EditProfile() {
               {language === "ar" ? "فشل في تحميل البيانات" : "Failed to Load Profile"}
             </h2>
             <p className="text-muted-foreground mb-4">
-              {language === "ar" ? "فشل في تحميل بيانات الملف الشخصي. يرجى المحاولة مرة أخرى." 
+              {language === "ar" ? "فشل في تحميل بيانات الملف الشخصي. يرجى المحاولة مرة أخرى."
                 : "Failed to load profile data. Please try again."}
             </p>
             <Button onClick={() => refetch()}>
@@ -243,7 +243,7 @@ export default function EditProfile() {
                 <Avatar className="w-24 h-24 border-4 border-primary/20">
                   <AvatarImage src={userProfile?.avatar} alt={getDisplayName()} />
                   <AvatarFallback className="bg-gradient-to-r from-primary to-purple-600 text-white text-2xl font-bold">
-                    {userProfile?.firstName.charAt(0)}{userProfile?.lastName.charAt(0)}
+                    {userProfile?.firstName?.charAt(0) || ''}{userProfile?.lastName?.charAt(0) || ''}
                   </AvatarFallback>
                 </Avatar>
                 {isEditing && (
@@ -259,7 +259,7 @@ export default function EditProfile() {
                 <p className="text-muted-foreground">{userProfile?.email}</p>
                 <div className="flex items-center gap-2 mt-2">
                   <Badge variant="outline">
-                    {language === "ar" 
+                    {language === "ar"
                       ? (userProfile?.accountType === 'student' ? 'طالب' : 'بالغ')
                       : (userProfile?.accountType === 'student' ? 'Student' : 'Adult')
                     }

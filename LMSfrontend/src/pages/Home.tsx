@@ -51,7 +51,7 @@ export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const parallaxOffset = useParallax(0.3);
   const isEgyptUser = useStore((state) => state.isEgyptUser);
-  const { categories, loading: coursesLoading, error: coursesError } = useCourses();
+  const { categories, loading: coursesLoading, error: coursesError, getTotalCourseCount, getTotalStudentCount } = useCourses();
 
   // Fetch Django courses for the courses section
   const { data: djangoCoursesData, isLoading: djangoCoursesLoading, error: djangoCoursesError } = useDjangoCourses({
@@ -64,31 +64,31 @@ export default function Home() {
       title: t("home.hero.slide1.title"),
       subtitle: t("home.hero.slide1.subtitle"),
       description: t("home.hero.slide1.description"),
-      image: "/data/1.png",
+      image: "/data/1.png", // Replace with your actual image filename
     },
     {
       title: t("home.hero.slide2.title"),
       subtitle: t("home.hero.slide2.subtitle"),
       description: t("home.hero.slide2.description"),
-      image: "/data/2.png",
+      image: "/data/2.png", // Replace with your actual image filename
     },
     {
       title: t("home.hero.slide3.title"),
       subtitle: t("home.hero.slide3.subtitle"),
       description: t("home.hero.slide3.description"),
-      image: "/data/3.png",
+      image: "/data/3.png", // Replace with your actual image filename
     },
     {
       title: t("home.hero.slide4.title"),
       subtitle: t("home.hero.slide4.subtitle"),
       description: t("home.hero.slide4.description"),
-      image: "/data/4.png",
+      image: "/data/4.png", // Replace with your actual image filename
     },
     {
       title: t("home.hero.slide5.title"),
       subtitle: t("home.hero.slide5.subtitle"),
       description: t("home.hero.slide5.description"),
-      image: "/data/5.png",
+      image: "/data/5.png", // Replace with your actual image filename
     },
   ];
 
@@ -161,11 +161,11 @@ export default function Home() {
   const displayCategories = courseCategories.length > 0 ? courseCategories : firebaseCourseCategories;
 
   // Dynamic stats - use Django course count if available, otherwise Firebase
-  const totalCourses = djangoCoursesData?.count;
+  const totalCourses = djangoCoursesData?.count || getTotalCourseCount();
   const stats = [
     {
       label: t("home.stats.students"),
-      value: `$5k+`,
+      value: `${(getTotalStudentCount() / 1000).toFixed(0)}k+`,
       icon: Users
     },
     {
@@ -362,7 +362,7 @@ export default function Home() {
             {[
               {
                 icon: Users,
-                value: 12,
+                value: Math.floor(getTotalStudentCount() / 1000),
                 suffix: "k+",
                 label: t("home.stats.students"),
               },
@@ -485,6 +485,64 @@ export default function Home() {
               {displayCategories.map((category) => (
                 <MagneticButton key={category.id} intensity={10}>
                   <Link to={`/courses?category=${category.category}`}>
+                    <Card className="category-card card-hover bg-card/80 backdrop-blur-sm border-2 border-transparent hover:border-primary/20 overflow-hidden h-full group transition-all duration-300 cursor-pointer">
+                      <div
+                        className={cn(
+                          "h-32 relative overflow-hidden",
+                          category.gradient,
+                        )}
+                      >
+                        {/* Category Icon */}
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="text-6xl filter drop-shadow-lg group-hover:scale-110 transition-transform duration-300">
+                            {category.icon}
+                          </div>
+                        </div>
+
+                        {/* Gradient overlay with animation */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent group-hover:from-black/60 transition-all duration-700" />
+
+                        {/* Course count badge */}
+                        <FloatingElement className="absolute top-4 right-4 z-10">
+                          <Badge className="bg-white/95 text-gray-800 shadow-lg backdrop-blur-sm px-3 py-1">
+                            <BookOpen className="mr-1 h-3 w-3" />
+                            {category.courseCount} courses
+                          </Badge>
+                        </FloatingElement>
+
+                        {/* Animated geometric shapes */}
+                        <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/10 rounded-full transform -translate-x-8 translate-y-8 group-hover:-translate-x-4 group-hover:translate-y-4 transition-transform duration-700" />
+                        <div className="absolute top-0 right-0 w-12 h-12 bg-white/5 rounded-full transform translate-x-6 -translate-y-6 group-hover:translate-x-3 group-hover:-translate-y-3 transition-transform duration-700" />
+
+                        {/* Hover overlay effect */}
+                        <div className="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                      </div>
+
+                      <CardHeader className="pb-4 relative">
+                        <CardTitle className="text-xl font-bold group-hover:text-primary transition-colors duration-300 text-reveal">
+                          {category.title}
+                        </CardTitle>
+                      </CardHeader>
+
+                      <CardContent className="space-y-4 flex-1 flex flex-col">
+                        <p className="text-muted-foreground leading-relaxed flex-1 text-sm">
+                          {category.description}
+                        </p>
+
+                        <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground group-hover:text-primary transition-colors">
+                            <BookOpen className="h-4 w-4" />
+                            <span className="font-medium">
+                              {category.courseCount} Courses
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 text-primary group-hover:translate-x-1 transition-transform duration-300">
+                            <span className="text-sm font-medium">Explore</span>
+                            <Play className="h-4 w-4 fill-current" />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </Link>
                 </MagneticButton>
               ))}

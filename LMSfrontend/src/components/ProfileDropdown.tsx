@@ -41,12 +41,12 @@ export default function ProfileDropdown({
   }, []);
 
   // Get user display info
-  const displayName = userProfile ? getDisplayName() : (user?.displayName || user?.email || "User");
+  const displayName = userProfile ? getDisplayName() : (user?.email || "User");
   const displayEmail = userProfile?.email || user?.email || "user@example.com";
-  
-  const initials = userProfile
-    ? `${userProfile.firstName.charAt(0)}${userProfile.lastName.charAt(0)}`
-    : displayName.split(' ').map(n => n.charAt(0)).join('').slice(0, 2).toUpperCase() || (language === "ar" ? "أم" : "US");
+
+  const initials = (userProfile?.firstName || userProfile?.lastName)
+    ? `${userProfile.firstName?.charAt(0) || ''}${userProfile.lastName?.charAt(0) || ''}`.toUpperCase()
+    : displayName.split(' ').map(n => n.charAt(0)).join('').slice(0, 2).toUpperCase() || (language === "ar" ? "أم" : "US"); // test
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -81,7 +81,7 @@ export default function ProfileDropdown({
                   <p className="text-sm text-muted-foreground truncate">{displayEmail}</p>
                   {userProfile && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      {language === "ar" 
+                      {language === "ar"
                         ? (userProfile.accountType === 'student' ? 'طالب' : 'بالغ')
                         : (userProfile.accountType === 'student' ? 'Student' : 'Adult')
                       } • {language === "ar" ? `العمر ${userProfile.age}` : `Age ${userProfile.age}`}
