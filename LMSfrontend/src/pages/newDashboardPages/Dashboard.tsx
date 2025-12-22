@@ -296,6 +296,51 @@ export default function Dashboard() {
 
     fetchData();
   }, []);
+
+  // Upload queue state
+  interface UploadQueueItem {
+    file: File;
+    courseFolder: string;
+    index: number;
+    type: 'new' | 'edit' | 'dialog';
+    onProgress: (progress: number) => void;
+    onComplete: (url: string) => void;
+    onError: (error: any) => void;
+  }
+  const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
+  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
+
+  useEffect(() => {
+    if (!isProcessingQueue && uploadQueue.length > 0) {
+      processNextInQueue();
+    }
+  }, [uploadQueue, isProcessingQueue]);
+
+  const processNextInQueue = async () => {
+    if (uploadQueue.length === 0) return;
+    setIsProcessingQueue(true);
+    const item = uploadQueue[0];
+
+    try {
+      const uploadResult = await uploadWithProgress(
+        import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/hostinger_upload.php',
+        item.file,
+        item.courseFolder,
+        item.onProgress
+      );
+
+      if (uploadResult.status === 'success') {
+        item.onComplete(uploadResult.url);
+      } else {
+        item.onError(new Error(uploadResult.message || 'Upload failed'));
+      }
+    } catch (error: any) {
+      item.onError(error);
+    } finally {
+      setUploadQueue(prev => prev.slice(1));
+      setIsProcessingQueue(false);
+    }
+  };
   // Handle video file upload for upload dialog
   const handleUploadDialogVideoFileChange = async (file: File, index: number) => {
     if (!file || !selectedCourseId) {
@@ -306,27 +351,30 @@ export default function Dashboard() {
     const selectedCourse = apiCourses.find(c => c.id.toString() === selectedCourseId);
     const courseFolder = selectedCourse ? slugify(selectedCourse.title) : 'general';
 
-    try {
-      const uploadResult = await uploadWithProgress(
-        import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/hostinger_upload.php',
-        file,
-        courseFolder,
-        (progress) => {
-          const updatedVideos = [...uploadVideos];
-          updatedVideos[index].uploadProgress = progress;
-          setUploadVideos(updatedVideos);
-        }
-      );
-
-      if (uploadResult.status === 'success') {
-        const updatedVideos = [...uploadVideos];
-        updatedVideos[index].url = uploadResult.url;
-        updatedVideos[index].uploadProgress = 100;
-        setUploadVideos(updatedVideos);
+    setUploadQueue(prev => [...prev, {
+      file,
+      courseFolder,
+      index,
+      type: 'dialog',
+      onProgress: (progress) => {
+        setUploadVideos(prev => {
+          const updated = [...prev];
+          updated[index].uploadProgress = progress;
+          return updated;
+        });
+      },
+      onComplete: (url) => {
+        setUploadVideos(prev => {
+          const updated = [...prev];
+          updated[index].url = url;
+          updated[index].uploadProgress = 100;
+          return updated;
+        });
+      },
+      onError: (error) => {
+        alert('Video upload failed: ' + error.message);
       }
-    } catch (error: any) {
-      alert('Video upload failed: ' + error.message);
-    }
+    }]);
   };
 
   const addUploadDialogVideo = () => {
@@ -421,27 +469,30 @@ export default function Dashboard() {
     if (!file) return;
     const courseFolder = editingCourse ? slugify(editingCourse.title) : 'general';
 
-    try {
-      const uploadResult = await uploadWithProgress(
-        import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/hostinger_upload.php',
-        file,
-        courseFolder,
-        (progress) => {
-          const updatedVideos = [...editFormData.videos];
+    setUploadQueue(prev => [...prev, {
+      file,
+      courseFolder,
+      index,
+      type: 'edit',
+      onProgress: (progress) => {
+        setEditFormData(prev => {
+          const updatedVideos = [...prev.videos];
           updatedVideos[index].uploadProgress = progress;
-          setEditFormData({ ...editFormData, videos: updatedVideos });
-        }
-      );
-
-      if (uploadResult.status === 'success') {
-        const updatedVideos = [...editFormData.videos];
-        updatedVideos[index].url = uploadResult.url;
-        updatedVideos[index].uploadProgress = 100;
-        setEditFormData({ ...editFormData, videos: updatedVideos });
+          return { ...prev, videos: updatedVideos };
+        });
+      },
+      onComplete: (url) => {
+        setEditFormData(prev => {
+          const updatedVideos = [...prev.videos];
+          updatedVideos[index].url = url;
+          updatedVideos[index].uploadProgress = 100;
+          return { ...prev, videos: updatedVideos };
+        });
+      },
+      onError: (error) => {
+        alert('Video upload failed: ' + error.message);
       }
-    } catch (error: any) {
-      alert('Video upload failed: ' + error.message);
-    }
+    }]);
   };
 
   const openEditDialog = (course: CourseWithVideos) => {
@@ -628,27 +679,30 @@ export default function Dashboard() {
     if (!file) return;
     const courseFolder = newCourse.title ? slugify(newCourse.title) : 'general';
 
-    try {
-      const uploadResult = await uploadWithProgress(
-        import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/hostinger_upload.php',
-        file,
-        courseFolder,
-        (progress) => {
-          const updatedVideos = [...newCourse.videos];
+    setUploadQueue(prev => [...prev, {
+      file,
+      courseFolder,
+      index,
+      type: 'new',
+      onProgress: (progress) => {
+        setNewCourse(prev => {
+          const updatedVideos = [...prev.videos];
           updatedVideos[index].uploadProgress = progress;
-          setNewCourse({ ...newCourse, videos: updatedVideos });
-        }
-      );
-
-      if (uploadResult.status === 'success') {
-        const updatedVideos = [...newCourse.videos];
-        updatedVideos[index].url = uploadResult.url;
-        updatedVideos[index].uploadProgress = 100;
-        setNewCourse({ ...newCourse, videos: updatedVideos });
+          return { ...prev, videos: updatedVideos };
+        });
+      },
+      onComplete: (url) => {
+        setNewCourse(prev => {
+          const updatedVideos = [...prev.videos];
+          updatedVideos[index].url = url;
+          updatedVideos[index].uploadProgress = 100;
+          return { ...prev, videos: updatedVideos };
+        });
+      },
+      onError: (error) => {
+        alert('Video upload failed: ' + error.message);
       }
-    } catch (error: any) {
-      alert('Video upload failed: ' + error.message);
-    }
+    }]);
   };
 
   const addVideoToEditCourse = () => {
