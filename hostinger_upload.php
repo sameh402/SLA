@@ -1,12 +1,14 @@
 <?php
-// Production Security: Allow CORS from any origin (necessary for dynamic Vercel preview URLs)
+// Robust CORS handling for dynamic Vercel preview URLs
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-File-Name, X-File-Size");
+header("Access-Control-Max-Age: 86400"); // Cache preflight for 24 hours
 
 // Handle preflight OPTIONS request
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    exit;
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    exit();
 }
 
 // Configuration
@@ -35,7 +37,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = error_get_last();
             $response['status'] = 'error';
             $response['message'] = "Upload failed. Please check server permissions or file size limits.";
-            // Keep minimal error info for production
             if ($error) {
                 $response['debug_info'] = $error['message'];
             }

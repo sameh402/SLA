@@ -33,12 +33,29 @@ def summary(request):
 	user = request.user
 	if not _is_admin(user):
 		return Response({"detail": "Not authorized"}, status=403)
-	users_count = User.objects.count()
+	
+	# Use caching to avoid heavy re-calculation on every request
+	from django.core.cache import cache
+	cache_key = "admin_summary_data"
+	cached_data = cache.get(cache_key)
+	if cached_data:
+		return Response(cached_data)
+
+	# Combine counts where possible
+	user_stats = User.objects.aggregate(
+		total_users=Count('id'),
+	)
 	users_by_role = list(User.objects.values('role').annotate(count=Count('id')).order_by())
-	courses_published = Course.objects.filter(status=Course.Status.PUBLISHED).count()
-	courses_draft = Course.objects.filter(status=Course.Status.DRAFT).count()
-	enrollments_active = Enrollment.objects.filter(status=Enrollment.Status.ACTIVE).count()
-	enrollments_completed = Enrollment.objects.filter(status=Enrollment.Status.COMPLETED).count()
+	
+	course_stats = Course.objects.aggregate(
+		published=Count('id', filter=Q(status=Course.Status.PUBLISHED)),
+		draft=Count('id', filter=Q(status=Course.Status.DRAFT))
+	)
+	
+	enrollment_stats = Enrollment.objects.aggregate(
+		active=Count('id', filter=Q(status=Enrollment.Status.ACTIVE)),
+		completed=Count('id', filter=Q(status=Enrollment.Status.COMPLETED))
+	)
  
 	total_videos = CourseMedia.objects.filter(media_type='video').count()
 
@@ -49,9 +66,11 @@ def summary(request):
 	start_30d = start_today - timedelta(days=29)
 
 	qs_success = Payment.objects.filter(payment_status=Payment.Status.SUCCESS)
-	revenue_total = qs_success.aggregate(total=Sum('amount'))['total'] or 0
-	revenue_7d = qs_success.filter(created_at__date__gte=start_7d.date()).aggregate(total=Sum('amount'))['total'] or 0
-	revenue_30d = qs_success.filter(created_at__date__gte=start_30d.date()).aggregate(total=Sum('amount'))['total'] or 0
+	revenue_stats = qs_success.aggregate(
+		total=Sum('amount'),
+		last_7d=Sum('amount', filter=Q(created_at__date__gte=start_7d.date())),
+		last_30d=Sum('amount', filter=Q(created_at__date__gte=start_30d.date()))
+	)
 
 	# Payments status counts
 	payments_by_status = list(Payment.objects.values('payment_status').annotate(count=Count('id')).order_by())
@@ -59,7 +78,6 @@ def summary(request):
 	# Top courses by enrollments (last 30 days)
 	top_courses = list(
 		Enrollment.objects.filter(created_at__date__gte=start_30d.date())
-		.annotate(day=TruncDate('created_at'))
 		.values('course_id', 'course__title')
 		.annotate(enrolls=Count('id'))
 		.order_by('-enrolls')[:5]
@@ -89,15 +107,15 @@ def summary(request):
 		.values('id', 'user_id', 'user__username', 'course_id', 'course__title', 'status', 'created_at')[:10]
 	)
 
-	return Response({
-		"users": users_count,
+	response_data = {
+		"users": user_stats['total_users'],
 		"users_by_role": users_by_role,
-		"courses": {"published": courses_published, "draft": courses_draft},
-		"enrollments": {"active": enrollments_active, "completed": enrollments_completed},
+		"courses": {"published": course_stats['published'], "draft": course_stats['draft']},
+		"enrollments": {"active": enrollment_stats['active'], "completed": enrollment_stats['completed']},
 		"revenue": {
-			"total": float(revenue_total),
-			"last_7_days": float(revenue_7d),
-			"last_30_days": float(revenue_30d),
+			"total": float(revenue_stats['total'] or 0),
+			"last_7_days": float(revenue_stats['last_7d'] or 0),
+			"last_30_days": float(revenue_stats['last_30d'] or 0),
 		},
 		"total_videos": total_videos,
 		"payments_by_status": payments_by_status,
@@ -105,7 +123,12 @@ def summary(request):
 		"daily_enrollments": daily_enrollments,
 		"daily_revenue": daily_revenue,
 		"recent_enrollments": recent_enrollments,
-	})
+	}
+	
+	# Cache for 5 minutes
+	cache.set(cache_key, response_data, 300)
+	
+	return Response(response_data)
 
 
 @api_view(["GET"]) 

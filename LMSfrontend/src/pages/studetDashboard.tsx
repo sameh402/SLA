@@ -48,43 +48,37 @@ export default function Index() {
     }
   }, [searchParams]);
 
-  // 1️⃣ Detect user's country
+  // 1️⃣ & 2️⃣ Parallelize external API calls for better performance
   useEffect(() => {
-    const detectLocation = async () => {
+    const fetchExternalData = async () => {
       try {
-        const res = await fetch("https://ipapi.co/json/");
-        const data = await res.json();
-        const isEgypt = data.country_name?.toLowerCase().includes("egypt");
-        setIsEgyptUser(isEgypt);
-      } catch (err) {
-        console.error("🌍 Geo detection failed:", err);
-        setIsEgyptUser(false);
-      }
-    };
-    detectLocation();
-  }, []);
+        setLoading(true);
+        const [geoRes, rateRes] = await Promise.all([
+          fetch("https://ipapi.co/json/").then(res => res.json()).catch(err => {
+            console.error("🌍 Geo detection failed:", err);
+            return { country_name: "Unknown" };
+          }),
+          fetch("https://open.er-api.com/v6/latest/USD").then(res => res.json()).catch(err => {
+            console.error("💥 Exchange rate fetch failed:", err);
+            return { rates: { EGP: 50 } };
+          })
+        ]);
 
-  // 2️⃣ Fetch live USD → EGP rate
-  useEffect(() => {
-    const fetchRate = async () => {
-      try {
-        const res = await fetch("https://open.er-api.com/v6/latest/USD");
-        const data = await res.json();
-        if (data && data.rates && data.rates.EGP) {
-          console.log("💰 Live rate fetched:", data.rates.EGP);
-          setExchangeRate(data.rates.EGP);
+        const isEgypt = geoRes.country_name?.toLowerCase().includes("egypt");
+        setIsEgyptUser(isEgypt);
+
+        if (rateRes && rateRes.rates && rateRes.rates.EGP) {
+          setExchangeRate(rateRes.rates.EGP);
         } else {
-          console.warn("⚠️ Fallback used: invalid response", data);
           setExchangeRate(50);
         }
       } catch (err) {
-        console.error("💥 Exchange rate fetch failed:", err);
-        setExchangeRate(50);
+        console.error("Error in parallel fetch:", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchRate();
+    fetchExternalData();
   }, []);
 
   // 3️⃣ Fetch Support Tickets
