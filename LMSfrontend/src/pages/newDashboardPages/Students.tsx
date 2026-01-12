@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState ,useEffect } from 'react';
 import { CourseWithVideos, coursesWithContent } from '@/lib/coursesData';
 import { getCourseCategoryPopularity } from "@/api/admin";
 
@@ -14,7 +14,7 @@ interface LegacyStudent {
   totalCourses: number;
   completedCourses: number;
   country: string;
-
+  
 }
 
 // Legacy student data for backward compatibility
@@ -86,24 +86,10 @@ import {
   MessageCircle,
   Award,
   Send,
-  X,
-  Plus,
-  Trash2
+  X
 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { useToast } from '@/hooks/use-toast';
-import { adminDeleteUser, adminCreateUser } from '@/api/admin';
 // import { getAllUsersFromDjango } from '@shared/api';
-import { adminListUsers, AdminUser, countrydistribution } from '@/api/admin';
+import { adminListUsers, AdminUser , countrydistribution } from '@/api/admin';
 import { useUserProfile } from '@/hooks/useUserProfile';
 
 interface Student {
@@ -111,21 +97,16 @@ interface Student {
   name: string;
   email: string;
   phone: string;
-  whatsappNumber: string;
   country: string;
   state: string;
-  courseCategories: string[]; // 👈 all enrolled categories
+ courseCategories: string[]; // 👈 all enrolled categories
   numberOfCoursesEnrolled: number;
   coursesEnrolled: string[];
   aftersaleRecommendationCourse: string;
   recommendationSent?: boolean;
-  nextCourseRecommendations?: string[];
-  password_hash?: string;
 }
 
-// const categories = ["Programming", "Data Science", "AI/ML", "Design", "Business", "Marketing"];
-const categories = ["General", "Programming", "Language", "Graphic", "Medical"];
-
+const categories = ["Programming", "Data Science", "AI/ML", "Design", "Business", "Marketing"];
 
 // Sample comprehensive student data
 const studentsData: Student[] = [
@@ -134,10 +115,9 @@ const studentsData: Student[] = [
     name: "Emma Davis",
     email: "emma.davis@example.com",
     phone: "+1-555-0101",
-    whatsappNumber: "+1-555-0101",
     country: "USA",
     state: "California",
-    courseCategories: ["Programming"],
+    courseCategory: "Programming",
     numberOfCoursesEnrolled: 3,
     coursesEnrolled: ["React Development", "JavaScript Fundamentals", "UI/UX Design"],
     aftersaleRecommendationCourse: "Advanced React Patterns",
@@ -148,10 +128,9 @@ const studentsData: Student[] = [
     name: "Ahmed Hassan",
     email: "ahmed.hassan@example.com",
     phone: "+20-100-123-4567",
-    whatsappNumber: "+20-100-123-4567",
     country: "Egypt",
     state: "Cairo",
-    courseCategories: ["Data Science"],
+    courseCategory: "Data Science",
     numberOfCoursesEnrolled: 2,
     coursesEnrolled: ["Python for Data Science", "Machine Learning Basics"],
     aftersaleRecommendationCourse: "Deep Learning Fundamentals",
@@ -162,10 +141,9 @@ const studentsData: Student[] = [
     name: "Maria Rodriguez",
     email: "maria.rodriguez@example.com",
     phone: "+34-600-123-456",
-    whatsappNumber: "+34-600-123-456",
     country: "Spain",
     state: "Madrid",
-    courseCategories: ["Marketing"],
+    courseCategory: "Marketing",
     numberOfCoursesEnrolled: 1,
     coursesEnrolled: ["Digital Marketing"],
     aftersaleRecommendationCourse: "Social Media Strategy",
@@ -176,10 +154,9 @@ const studentsData: Student[] = [
     name: "Liu Wei",
     email: "liu.wei@example.com",
     phone: "+86-138-0013-8000",
-    whatsappNumber: "+86-138-0013-8000",
     country: "China",
     state: "Beijing",
-    courseCategories: ["AI/ML"],
+    courseCategory: "AI/ML",
     numberOfCoursesEnrolled: 4,
     coursesEnrolled: ["AI/ML Fundamentals", "Python Programming", "Data Visualization", "Statistics"],
     aftersaleRecommendationCourse: "Computer Vision",
@@ -190,10 +167,9 @@ const studentsData: Student[] = [
     name: "John Smith",
     email: "john.smith@example.com",
     phone: "+1-555-0102",
-    whatsappNumber: "+1-555-0102",
     country: "USA",
     state: "New York",
-    courseCategories: ["Business"],
+    courseCategory: "Business",
     numberOfCoursesEnrolled: 2,
     coursesEnrolled: ["Business Analytics", "Project Management"],
     aftersaleRecommendationCourse: "Leadership Skills",
@@ -204,10 +180,9 @@ const studentsData: Student[] = [
     name: "Sarah Johnson",
     email: "sarah.johnson@example.com",
     phone: "+44-7700-900123",
-    whatsappNumber: "+44-7700-900123",
     country: "UK",
     state: "London",
-    courseCategories: ["Design"],
+    courseCategory: "Design",
     numberOfCoursesEnrolled: 3,
     coursesEnrolled: ["Web Design", "Graphic Design", "Photography"],
     aftersaleRecommendationCourse: "Brand Identity Design",
@@ -218,10 +193,9 @@ const studentsData: Student[] = [
     name: "Raj Patel",
     email: "raj.patel@example.com",
     phone: "+91-98765-43210",
-    whatsappNumber: "+91-98765-43210",
     country: "India",
     state: "Mumbai",
-    courseCategories: ["Programming"],
+    courseCategory: "Programming",
     numberOfCoursesEnrolled: 5,
     coursesEnrolled: ["Full Stack Development", "Node.js", "React", "MongoDB", "AWS"],
     aftersaleRecommendationCourse: "DevOps Fundamentals",
@@ -232,10 +206,9 @@ const studentsData: Student[] = [
     name: "Ana Silva",
     email: "ana.silva@example.com",
     phone: "+55-11-99999-8888",
-    whatsappNumber: "+55-11-99999-8888",
     country: "Brazil",
     state: "São Paulo",
-    courseCategories: ["Marketing"],
+    courseCategory: "Marketing",
     numberOfCoursesEnrolled: 1,
     coursesEnrolled: ["Digital Marketing"],
     aftersaleRecommendationCourse: "E-commerce Strategy",
@@ -246,10 +219,9 @@ const studentsData: Student[] = [
     name: "Mohammed Al-Rashid",
     email: "mohammed.rashid@example.com",
     phone: "+966-50-123-4567",
-    whatsappNumber: "+966-50-123-4567",
     country: "Saudi Arabia",
     state: "Riyadh",
-    courseCategories: ["Programming"],
+    courseCategory: "Programming",
     numberOfCoursesEnrolled: 2,
     coursesEnrolled: ["Cybersecurity Basics", "Network Administration"],
     aftersaleRecommendationCourse: "Ethical Hacking",
@@ -260,10 +232,9 @@ const studentsData: Student[] = [
     name: "Sophie Martin",
     email: "sophie.martin@example.com",
     phone: "+33-6-12-34-56-78",
-    whatsappNumber: "+33-6-12-34-56-78",
     country: "France",
     state: "Paris",
-    courseCategories: ["Data Science"],
+    courseCategory: "Data Science",
     numberOfCoursesEnrolled: 3,
     coursesEnrolled: ["Data Science", "Python", "Statistics"],
     aftersaleRecommendationCourse: "Machine Learning",
@@ -374,18 +345,7 @@ export default function Students() {
   const [data, setData] = useState<{ category: string; count: number }[]>([]);
   const [countryDistribution, setCountryDistribution] = useState<any[]>([]);
   const [totalStudents, setTotalStudents] = useState<number>(0);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState<number | null>(null);
-  const [newStudent, setNewStudent] = useState({
-    first_name: '',
-    last_name: '',
-    email: '',
-    password: '',
-    phone: '',
-    country: 'Egypt'
-  });
-  const { userProfile, loading } = useUserProfile();
-  const { toast } = useToast();
+  const { userProfile, loading  } = useUserProfile();
 
 
 
@@ -405,7 +365,7 @@ export default function Students() {
 
 
   // student distribution
-
+  
   useEffect(() => {
     fetchCountryDistribution();
   }, []);
@@ -427,17 +387,17 @@ export default function Students() {
 
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.email.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesCategory =
-      categoryFilter === "all" ||
-      (student.courseCategories &&
-        student.courseCategories.some(
-          (cat) => cat.toLowerCase() === categoryFilter.toLowerCase()
-        ));
+                         student.email.toLowerCase().includes(searchTerm.toLowerCase());
+    
+const matchesCategory =
+    categoryFilter === "all" ||
+    (student.courseCategories &&
+      student.courseCategories.some(
+        (cat) => cat.toLowerCase() === categoryFilter.toLowerCase()
+      ));
 
     const matchesCountry = countryFilter === "all" || student.country === countryFilter;
-
+    
     return matchesSearch && matchesCategory && matchesCountry;
   });
 
@@ -457,16 +417,30 @@ export default function Students() {
     ));
   };
 
-  const fetchStudents = async () => {
-    try {
-      const res = await adminListUsers();
-      const users: AdminUser[] = res.data?.results ?? [];
-      const studentsOnly = users.filter((u) => u.role === 'student');
-      const mappedStudents: Student[] = studentsOnly.map((user) => {
+  React.useEffect(() => {
+  async function fetchStudents() {
+      try {
+        const res = await adminListUsers();
+        const users: AdminUser[] = res.data?.results ?? [];
+        const studentsOnly = users.filter((u) => u.role === 'student');
+        // const mappedStudents: Student[] = studentsOnly.map((user) => ({
+        //   id: user.id,
+        //   name: `${(user.first_name || '').trim()} ${(user.last_name || '').trim()}`.trim() || user.username,
+        //   email: (user.email || '').trim() || user.username,
+        //   whatsappNumber: user.phone || '',
+        //   country: user.country || 'N/A',
+        //   state: '',
+        //   courseCategory: primaryCategory, // 🧭 first course category
+        //   numberOfCoursesEnrolled: courses.length, // 🧮 count of enrolled courses
+        //   coursesEnrolled: courseTitles, // 🎓 list of enrolled course titles
+        //   aftersaleRecommendationCourse: '',
+        //   recommendationSent: false,
+        // }));
+        const mappedStudents: Student[] = studentsOnly.map((user) => {
         const courses = user.courses_enrolled || [];
         const courseTitles = courses.map((c: any) => c.title);
         const nextRecommendations = courses.map((c: any) => c.next_recommendation || "N/A");
-        const allCategories = Array.from(
+         const allCategories = Array.from(
           new Set(courses.map((c: any) => c.category).filter(Boolean))
         );
 
@@ -476,86 +450,40 @@ export default function Students() {
             `${(user.first_name || "").trim()} ${(user.last_name || "").trim()}`.trim() ||
             user.username,
           email: (user.email || "").trim() || user.username,
-          phone: user.phone || "",
           whatsappNumber: user.phone || "",
           country: user.country || "N/A",
           state: "",
-          courseCategories: allCategories,
+         courseCategories: allCategories, // ✅ store all enrolled categories
           numberOfCoursesEnrolled: courses.length,
           coursesEnrolled: courseTitles,
           aftersaleRecommendationCourse: "",
           recommendationSent: false,
-          nextCourseRecommendations: nextRecommendations,
-          password_hash: user.password_hash || "N/A",
+          nextCourseRecommendations: nextRecommendations, // ✅ rename and store array
         };
       });
 
-      setStudents(mappedStudents);
-    } catch (e) {
-      console.error('Failed to load users', e);
-      setStudents([]);
-    }
-  };
-
-  const handleAddStudent = async () => {
-    try {
-      if (!newStudent.email || !newStudent.password || !newStudent.first_name || !newStudent.last_name) {
-        toast({ title: "Error", description: "Please fill in all required fields", variant: "destructive" });
-        return;
+        setStudents(mappedStudents);
+      } catch (e) {
+        console.error('Failed to load users', e);
+        setStudents([]);
       }
-      await adminCreateUser({
-        ...newStudent,
-        role: 'student'
-      });
-      toast({ title: "Success", description: "Student added successfully" });
-      setIsAddDialogOpen(false);
-      setNewStudent({
-        first_name: '',
-        last_name: '',
-        email: '',
-        password: '',
-        phone: '',
-        country: 'Egypt'
-      });
-      fetchStudents();
-    } catch (error) {
-      console.error("Failed to add student:", error);
-      toast({ title: "Error", description: "Failed to add student", variant: "destructive" });
-    }
-  };
-
-  const handleDeleteStudent = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this student?")) return;
-    try {
-      setIsDeleting(id);
-      await adminDeleteUser(id);
-      toast({ title: "Success", description: "Student deleted successfully" });
-      fetchStudents();
-    } catch (error) {
-      console.error("Failed to delete student:", error);
-      toast({ title: "Error", description: "Failed to delete student", variant: "destructive" });
-    } finally {
-      setIsDeleting(null);
-    }
-  };
-
-  React.useEffect(() => {
-    fetchStudents();
-  }, []);
+  }
+  fetchStudents();
+}, []);
 
 
 
 
-  // top conuntry
-  const countryCount = students.reduce((acc, student) => {
+// top conuntry
+const countryCount = students.reduce((acc, student) => {
     const country = student.country || "Unknown";
     acc[country] = (acc[country] || 0) + 1;
     return acc;
   }, {});
 
   // Find the top country
-  const topCountry = Object.entries(countryCount).sort((a, b) => (b[1] as number) - (a[1] as number))[0];
-  console.log("top Country:", topCountry)
+  const topCountry = Object.entries(countryCount).sort((a, b) => b[1] - a[1])[0];
+  console.log("top Country:" , topCountry)
   const [countryName, count] = topCountry || ["Unknown", 0];
 
 
@@ -563,8 +491,8 @@ export default function Students() {
 
 
 
-  const isAdmin = userProfile?.role === 'admin';
-  console.log("userProfile", userProfile)
+const isAdmin = userProfile?.role === 'admin';
+console.log("userProfile",userProfile)
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -574,83 +502,6 @@ export default function Students() {
           <p className="text-muted-foreground">Comprehensive student analytics and management</p>
         </div>
         <div className="flex items-center space-x-2">
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
-                <Plus className="w-4 h-4" /> Add Student
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Add New Student</DialogTitle>
-                <DialogDescription>
-                  Enter the student's details below to create a new account.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="first_name" className="text-right">First Name</Label>
-                  <Input
-                    id="first_name"
-                    className="col-span-3"
-                    value={newStudent.first_name}
-                    onChange={(e) => setNewStudent({ ...newStudent, first_name: e.target.value })}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="last_name" className="text-right">Last Name</Label>
-                  <Input
-                    id="last_name"
-                    className="col-span-3"
-                    value={newStudent.last_name}
-                    onChange={(e) => setNewStudent({ ...newStudent, last_name: e.target.value })}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="email" className="text-right">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    className="col-span-3"
-                    value={newStudent.email}
-                    onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="password" className="text-right">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    className="col-span-3"
-                    value={newStudent.password}
-                    onChange={(e) => setNewStudent({ ...newStudent, password: e.target.value })}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="phone" className="text-right">Phone</Label>
-                  <Input
-                    id="phone"
-                    className="col-span-3"
-                    value={newStudent.phone}
-                    onChange={(e) => setNewStudent({ ...newStudent, phone: e.target.value })}
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="country" className="text-right">Country</Label>
-                  <Input
-                    id="country"
-                    className="col-span-3"
-                    value={newStudent.country}
-                    onChange={(e) => setNewStudent({ ...newStudent, country: e.target.value })}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleAddStudent}>Save Student</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
           <Badge variant="secondary" className="text-sm">
             {TotalStudents} Total Students
           </Badge>
@@ -680,19 +531,19 @@ export default function Students() {
             <p className="text-xs text-muted-foreground">{students.filter(s => s.country === topCountry).length} students</p>
           </CardContent>
         </Card> */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Top Country</CardTitle>
-            <Globe className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold flex items-center gap-2">
-              {/* <span>{getCountryFlag(countryName)}</span> */}
-              <span>{String(countryName)}</span>
-            </div>
-            <p className="text-xs text-muted-foreground">{String(count)} students</p>
-          </CardContent>
-        </Card>
+         <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">Top Country</CardTitle>
+        <Globe className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold flex items-center gap-2">
+          {/* <span>{getCountryFlag(countryName)}</span> */}
+          <span>{countryName}</span>
+        </div>
+        <p className="text-xs text-muted-foreground">{count} students</p>
+      </CardContent>
+    </Card>
 
         <TooltipProvider>
           <UITooltip>
@@ -727,37 +578,37 @@ export default function Students() {
 
       {/* Analytics Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Course Category Popularity</CardTitle>
-            <CardDescription>Number of enrollments by category</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <p className="text-center text-muted-foreground py-10">Loading...</p>
-            ) : data.length === 0 ? (
-              <p className="text-center text-muted-foreground py-10">No data available</p>
-            ) : (
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="category" className="text-muted-foreground" fontSize={12} />
-                    <YAxis className="text-muted-foreground" fontSize={12} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--background))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "6px",
-                      }}
-                    />
-                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+         <Card>
+      <CardHeader>
+        <CardTitle>Course Category Popularity</CardTitle>
+        <CardDescription>Number of enrollments by category</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <p className="text-center text-muted-foreground py-10">Loading...</p>
+        ) : data.length === 0 ? (
+          <p className="text-center text-muted-foreground py-10">No data available</p>
+        ) : (
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="category" className="text-muted-foreground" fontSize={12} />
+                <YAxis className="text-muted-foreground" fontSize={12} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--background))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "6px",
+                  }}
+                />
+                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </CardContent>
+    </Card>
 
         {/* Enrollment Trends */}
         {/* <Card className="lg:col-span-2 opacity-20">
@@ -857,52 +708,52 @@ export default function Students() {
           </CardContent>
         </Card> */}
         <Card>
-          <CardHeader>
-            <CardTitle>Student Distribution</CardTitle>
-            <CardDescription>Global student map</CardDescription>
-          </CardHeader>
+      <CardHeader>
+        <CardTitle>Student Distribution</CardTitle>
+        <CardDescription>Global student map</CardDescription>
+      </CardHeader>
 
-          <CardContent>
-            <div className="h-80 overflow-y-auto">
-              <div className="space-y-3">
-                {countryDistribution.map((country, index) => {
-                  const maxCount = Math.max(...countryDistribution.map(c => c.count));
-                  const percentage = ((country.count / totalStudents) * 100).toFixed(1);
+      <CardContent>
+        <div className="h-80 overflow-y-auto">
+          <div className="space-y-3">
+            {countryDistribution.map((country, index) => {
+              const maxCount = Math.max(...countryDistribution.map(c => c.count));
+              const percentage = ((country.count / totalStudents) * 100).toFixed(1);
 
-                  return (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
-                    >
-                      <div>
-                        <p className="font-medium">{country.country}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {country.count} student{country.count !== 1 ? "s" : ""}
-                        </p>
-                      </div>
+              return (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                >
+                  <div>
+                    <p className="font-medium">{country.country}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {country.count} student{country.count !== 1 ? "s" : ""}
+                    </p>
+                  </div>
 
-                      <div className="text-right">
-                        <div className="w-20 bg-muted rounded-full h-2">
-                          <div
-                            className="bg-primary h-2 rounded-full transition-all"
-                            style={{
-                              width: `${(country.count / maxCount) * 100}%`,
-                            }}
-                          />
-                        </div>
-                        <span className="text-xs text-muted-foreground mt-1 block">{percentage}%</span>
-                      </div>
+                  <div className="text-right">
+                    <div className="w-20 bg-muted rounded-full h-2">
+                      <div
+                        className="bg-primary h-2 rounded-full transition-all"
+                        style={{
+                          width: `${(country.count / maxCount) * 100}%`,
+                        }}
+                      />
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                    <span className="text-xs text-muted-foreground mt-1 block">{percentage}%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
       </div>
 
       {/* Course Category Analytics */}
-
+     
       {/* Filters */}
       <Card>
         <CardHeader>
@@ -967,7 +818,8 @@ export default function Students() {
                   <TableHead>Course Category</TableHead>
                   <TableHead className="text-center">Courses Count</TableHead>
                   <TableHead>Enrolled Courses</TableHead>
-                  <TableHead className="text-center">Management</TableHead>
+                  <TableHead>Courses Recomendation</TableHead>
+                  <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -987,15 +839,15 @@ export default function Students() {
                         <span>{student.country}</span>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {student.courseCategories.map((cat, idx) => (
-                          <Badge key={idx} variant="outline" className="text-xs">
-                            {cat}
-                          </Badge>
-                        ))}
-                      </div>
-                    </TableCell>
+                   <TableCell>
+  <div className="flex flex-wrap gap-1">
+    {student.courseCategories.map((cat, idx) => (
+      <Badge key={idx} variant="outline" className="text-xs">
+        {cat}
+      </Badge>
+    ))}
+  </div>
+</TableCell>
 
                     <TableCell className="text-center">
                       <Badge variant="secondary">{student.numberOfCoursesEnrolled}</Badge>
@@ -1009,23 +861,48 @@ export default function Students() {
                         ))}
                       </div>
                     </TableCell>
+                                  <TableCell>
+                  <div className="space-y-1">
+                    {student.nextCourseRecommendations && student.nextCourseRecommendations.length > 0 ? (
+                      student.nextCourseRecommendations.map((rec, index) => (
+                        <Badge key={index} variant="outline" className="text-xs mr-1 mb-1">
+                          {rec}
+                        </Badge>
+                      ))
+                    ) : (
+                      <Badge variant="secondary" className="text-xs">
+                        N/A
+                      </Badge>
+                    )}
+                  </div>
+</TableCell>
+
+                   
                     <TableCell className="text-center">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDeleteStudent(student.id)}
-                        disabled={isDeleting === student.id}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center gap-2 justify-center">
+                        <Button variant="ghost" size="sm">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant={student.recommendationSent ? "outline" : "default"}
+                          size="sm"
+                          onClick={() => toggleRecommendation(student.id)}
+                          className={student.recommendationSent ? "text-muted-foreground" : ""}
+                        >
+                          {student.recommendationSent ? (
+                            <><X className="w-3 h-3 mr-1" />No</>
+                          ) : (
+                            <><Send className="w-3 h-3 mr-1" />Yes</>
+                          )}
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
-
+          
           {filteredStudents.length === 0 && (
             <div className="text-center py-16">
               <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />

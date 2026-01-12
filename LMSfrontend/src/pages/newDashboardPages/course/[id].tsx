@@ -107,14 +107,16 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Star, Video, Users } from 'lucide-react';
 import { coursesWithContent } from '@/lib/coursesData';
-import { adminGetCourseEnrolledStudents, adminGetCourseProfile } from '@/api/admin';
+import { adminGetCourseEnrolledStudents } from '@/api/admin';
 import { TextAvatar } from '@/components/TextAvatar';
 
 const CoursePage = () => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
-  const [course, setCourse] = useState<any>(location.state?.course || null);
-  const [loading, setLoading] = useState(!course);
+  const course =
+    location.state?.course ||
+    coursesWithContent.find((c) => c.id.toString() === id);
+
   const [enrolledStudents, setEnrolledStudents] = useState<any[]>([]);
   const [instructors, setInstructors] = useState<any[]>([]);
   const [totalStudents, setTotalStudents] = useState(0);
@@ -123,35 +125,30 @@ const CoursePage = () => {
   useEffect(() => {
     const fetchCourseData = async () => {
       try {
-        setLoading(true);
-        const [enrollmentRes, profileRes] = await Promise.all([
-          adminGetCourseEnrolledStudents(Number(id)),
-          adminGetCourseProfile(Number(id))
-        ]);
+        const { data } = await adminGetCourseEnrolledStudents(Number(id));
+        console.log("✅ API response:", data);
 
-        if (profileRes.data) {
-          setCourse(profileRes.data);
-        }
-
-        if (enrollmentRes.data) {
-          setEnrolledStudents(Array.isArray(enrollmentRes.data.students) ? enrollmentRes.data.students : []);
-          setInstructors(Array.isArray(enrollmentRes.data.instructors) ? enrollmentRes.data.instructors : []);
-          setTotalStudents(Number(enrollmentRes.data.total_students) || 0);
-          setTotalInstructors(Number(enrollmentRes.data.total_instructors) || 0);
+        // Ensure the API data structure is valid
+        if (data && typeof data === 'object') {
+          setEnrolledStudents(Array.isArray(data.students) ? data.students : []);
+          setInstructors(Array.isArray(data.instructors) ? data.instructors : []);
+          setTotalStudents(Number(data.total_students) || 0);
+          setTotalInstructors(Number(data.total_instructors) || 0);
+        } else {
+          setEnrolledStudents([]);
+          setInstructors([]);
+          setTotalStudents(0);
+          setTotalInstructors(0);
         }
       } catch (error) {
-        console.error('❌ Failed to fetch course data:', error);
-      } finally {
-        setLoading(false);
+        console.error('❌ Failed to fetch course enrollments:', error);
+        setEnrolledStudents([]);
+        setInstructors([]);
       }
     };
 
     if (id) fetchCourseData();
   }, [id]);
-
-  if (loading) {
-    return <div className="p-8 text-center text-lg">Loading course...</div>;
-  }
 
   if (!course) {
     return <div className="p-8 text-center text-lg">Course not found.</div>;
@@ -251,7 +248,7 @@ const CoursePage = () => {
         <CardHeader>
           <CardTitle>Course Participants</CardTitle>
           <CardDescription>
-            {totalStudents} Students •
+            {totalStudents} Students • 
           </CardDescription>
         </CardHeader>
         <CardContent>

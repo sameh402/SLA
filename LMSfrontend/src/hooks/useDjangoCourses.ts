@@ -94,56 +94,41 @@ export function transformCourseForDisplay(course: DjangoCourse) {
   };
 }
 
-// export function getCourseCategories(courses: DjangoCourse[]) {
-//   // Since we don't have categories in the backend yet, we'll create mock categories
-//   // based on course titles/descriptions for now
-//   const categories = new Map();
-  
-//   courses.forEach(course => {
-//     const title = course.title.toLowerCase();
-//     const desc = course.description.toLowerCase();
-    
-//     let category = 'General';
-    
-//     if (title.includes('french') || title.includes('german') || title.includes('chinese') || title.includes('english') || title.includes('language')) {
-//       category = 'Languages';
-//     } else if (title.includes('web') || title.includes('python') || title.includes('programming') || title.includes('development') || title.includes('code')) {
-//       category = 'Programming';
-//     } else if (title.includes('design') || title.includes('art') || title.includes('graphic') || title.includes('creative')) {
-//       category = 'Design';
-//     } else if (title.includes('health') || title.includes('medical') || title.includes('hospital') || title.includes('first aid')) {
-//       category = 'Healthcare';
-//     } else if (title.includes('business') || title.includes('management') || title.includes('marketing') || title.includes('project')) {
-//       category = 'Business';
-//     } else if (title.includes('math') || title.includes('calculation') || title.includes('logic')) {
-//       category = 'Mathematics';
-//     }
-    
-//     if (!categories.has(category)) {
-//       categories.set(category, []);
-//     }
-//     categories.get(category).push(course);
-//   });
-  
-//   return Array.from(categories.entries()).map(([name, courses]) => ({
-//     name,
-//     courseCount: courses.length,
-//     courses,
-//   }));
-// }
-
-// ✅ Generate a clean list of categories from backend data
 export function getCourseCategories(courses: DjangoCourse[]) {
-  const categoryMap = new Map<string, number>();
-
-  courses.forEach((course) => {
-    const cat = course.category || "Uncategorized";
-    categoryMap.set(cat, (categoryMap.get(cat) || 0) + 1);
+  // Since we don't have categories in the backend yet, we'll create mock categories
+  // based on course titles/descriptions for now
+  const categories = new Map();
+  
+  courses.forEach(course => {
+    const title = course.title.toLowerCase();
+    const desc = course.description.toLowerCase();
+    
+    let category = 'General';
+    
+    if (title.includes('french') || title.includes('german') || title.includes('chinese') || title.includes('english') || title.includes('language')) {
+      category = 'Languages';
+    } else if (title.includes('web') || title.includes('python') || title.includes('programming') || title.includes('development') || title.includes('code')) {
+      category = 'Programming';
+    } else if (title.includes('design') || title.includes('art') || title.includes('graphic') || title.includes('creative')) {
+      category = 'Design';
+    } else if (title.includes('health') || title.includes('medical') || title.includes('hospital') || title.includes('first aid')) {
+      category = 'Healthcare';
+    } else if (title.includes('business') || title.includes('management') || title.includes('marketing') || title.includes('project')) {
+      category = 'Business';
+    } else if (title.includes('math') || title.includes('calculation') || title.includes('logic')) {
+      category = 'Mathematics';
+    }
+    
+    if (!categories.has(category)) {
+      categories.set(category, []);
+    }
+    categories.get(category).push(course);
   });
-
-  return Array.from(categoryMap.entries()).map(([name, count]) => ({
+  
+  return Array.from(categories.entries()).map(([name, courses]) => ({
     name,
-    courseCount: count,
+    courseCount: courses.length,
+    courses,
   }));
 }
 

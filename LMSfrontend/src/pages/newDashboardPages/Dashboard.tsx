@@ -1,34 +1,6 @@
-import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { CourseWithVideos, VideoContent, coursesWithContent } from '@/lib/coursesData';
-import { adminSummary, adminListCourses, adminUpdateCourse, adminCreateCourseMultipart, createCourseMedia, adminDeleteCourseMedia } from '@/api/admin';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  BookOpen,
-  Users,
-  UserCheck,
-  TrendingUp,
-  Star,
-  Calendar,
-  Clock,
-  Award,
-  Plus,
-  ArrowUpRight,
-  ArrowDownRight,
-  Edit,
-  Video,
-  Trash2,
-  Save
-} from 'lucide-react';
-import AddCourseDialog from '@/components/AddCourseDialog';
 
 // Sample data for revenue and active students organized by year
 const revenueData = {
@@ -189,11 +161,117 @@ const generateSampleData = (type: 'revenue' | 'enrollments', days: number = 30) 
   return data;
 };
 
-import DashboardStats from './components/DashboardStats';
-import DashboardCharts from './components/DashboardCharts';
-import RecentCoursesList from './components/RecentCoursesList';
-import CourseContentEditor from './components/CourseContentEditor';
-import QuickActionsGrid from './components/QuickActionsGrid';
+// Dashboard statistics cards data - will be updated with API data
+const getStats = (summaryData: any) => {
+  if (!summaryData) {
+    return [
+      {
+        title: "Total Courses",
+        value: "0",
+        change: "0%",
+        changeType: "increase" as const,
+        icon: BookOpen,
+        color: "bg-blue-500"
+      },
+      {
+        title: "Active Students",
+        value: "0",
+        change: "0%",
+        changeType: "increase" as const,
+        icon: Users,
+        color: "bg-green-500"
+      },
+      {
+        title: "Video Content",
+        value: "0",
+        change: "0%",
+        changeType: "increase" as const,
+        icon: Video,
+        color: "bg-purple-500"
+      },
+      {
+        title: "Revenue",
+        value: "$0",
+        change: "0%",
+        changeType: "increase" as const,
+        icon: TrendingUp,
+        color: "bg-green-600"
+      }
+    ];
+  }
+
+  const totalCourses = (summaryData.courses?.published || 0) + (summaryData.courses?.draft || 0);
+  const activeStudents = summaryData.enrollments?.active || 0;
+  const totalRevenue = summaryData.revenue?.total || 0;
+  const totalVideos = summaryData.total_videos || 0;
+
+  return [
+    {
+      title: "Total Courses",
+      value: totalCourses.toString(),
+      change: "+12%",
+      changeType: "increase" as const,
+      icon: BookOpen,
+      color: "bg-blue-500"
+    },
+    {
+      title: "Active Students",
+      value: activeStudents.toString(),
+      change: "+8%",
+      changeType: "increase" as const,
+      icon: Users,
+      color: "bg-green-500"
+    },
+    {
+      title: "Video Content",
+      value: totalVideos.toString(),
+      change: "+20%",
+      changeType: "increase" as const,
+      icon: Video,
+      color: "bg-purple-500"
+    },
+    {
+      title: "Revenue",
+      value: `$${totalRevenue.toLocaleString()}`,
+      change: "+15%",
+      changeType: "increase" as const,
+      icon: TrendingUp,
+      color: "bg-green-600"
+    }
+  ];
+};
+
+import React, { useState, useEffect } from 'react';
+import { CourseWithVideos, VideoContent, coursesWithContent } from '@/lib/coursesData';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { adminSummary, adminListCourses, adminUpdateCourse, adminCreateCourseMultipart, createCourseMedia, adminDeleteCourseMedia } from '@/api/admin';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+// import AddCourseDialog from '../components/AddCourseDialog';
+import {
+  BookOpen,
+  Users,
+  UserCheck,
+  TrendingUp,
+  Star,
+  Calendar,
+  Clock,
+  Award,
+  Plus,
+  ArrowUpRight,
+  ArrowDownRight,
+  Edit,
+  Video,
+  Trash2,
+  Save
+} from 'lucide-react';
+import AddCourseDialog from '@/components/AddCourseDialog';
 
 export default function Dashboard() {
   const [courses, setCourses] = useState<CourseWithVideos[]>(coursesWithContent);
@@ -218,175 +296,141 @@ export default function Dashboard() {
   const [certificates, setCertificates] = useState([]);
   const [certificateForm, setCertificateForm] = useState({ student: '', courseId: '', date: '' });
   const [selectedCourseId, setSelectedCourseId] = useState("");
-  const [uploadVideos, setUploadVideos] = useState<{
-    id?: number;
-    title: string;
-    description: string;
-    duration: string;
-    file: any;
-    uploadProgress: number;
-    url: string;
-  }[]>([{ title: "", description: "", duration: "", file: null, uploadProgress: 0, url: "" }]);
+  const [uploadVideos, setUploadVideos] = useState([{ id: Date.now(), title: "", description: "", duration: "", file: null, uploadProgress: 0, url: "" }]);
 
-  const slugify = (text: string) => {
-    return text
-      .toString()
-      .toLowerCase()
-      .trim()
-      .replace(/\s+/g, '-')
-      .replace(/[^\w-]+/g, '')
-      .replace(/--+/g, '-');
-  };
+  // Sequential upload queue
+  const [uploadQueue, setUploadQueue] = useState<{
+    file: File;
+    index: number;
+    type: 'new' | 'edit' | 'uploadDialog';
+  }[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
-  const uploadWithProgress = (url: string, file: File, courseFolder: string, onProgress: (progress: number) => void): Promise<any> => {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('course_folder', courseFolder);
-
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
-          const percentComplete = Math.round((e.loaded / e.total) * 100);
-          onProgress(percentComplete);
-        }
-      });
-
-      xhr.addEventListener('load', () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const response = JSON.parse(xhr.responseText);
-            resolve(response);
-          } catch (err) {
-            reject(new Error('Invalid JSON response from server'));
-          }
-        } else {
-          reject(new Error(`Upload failed with status ${xhr.status}`));
-        }
-      });
-
-      xhr.addEventListener('error', () => {
-        reject(new Error('Network error during upload.'));
-      });
-
-      xhr.open('POST', url);
-      xhr.send(formData);
-    });
-  };
-
-  // Fetch all data in parallel for better performance
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [summaryRes, coursesRes] = await Promise.all([
-          adminSummary(),
-          adminListCourses()
-        ]);
+    const processQueue = async () => {
+      if (isUploading || uploadQueue.length === 0) return;
 
-        setSummaryData(summaryRes.data);
-        setApiCourses(coursesRes.data.results || []);
-        console.log("Dashboard data loaded successfully");
+      setIsUploading(true);
+      const item = uploadQueue[0];
+      const { file, index, type } = item;
+
+      const videoName = `${Date.now()}_${file.name}`;
+      const storageRef = ref(storage, `videos/${videoName}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on('state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          if (type === 'new') {
+            setNewCourse(prev => {
+              const updated = [...prev.videos];
+              if (updated[index]) updated[index].uploadProgress = progress;
+              return { ...prev, videos: updated };
+            });
+          } else if (type === 'edit') {
+            setEditFormData(prev => {
+              const updated = [...prev.videos];
+              if (updated[index]) updated[index].uploadProgress = progress;
+              return { ...prev, videos: updated };
+            });
+          } else if (type === 'uploadDialog') {
+            setUploadVideos(prev => {
+              const updated = [...prev];
+              if (updated[index]) updated[index].uploadProgress = progress;
+              return { ...prev, videos: updated };
+            });
+          }
+        },
+        (error) => {
+          alert('Video upload failed: ' + error.message);
+          setUploadQueue(prev => prev.slice(1));
+          setIsUploading(false);
+        },
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          if (type === 'new') {
+            setNewCourse(prev => {
+              const updated = [...prev.videos];
+              if (updated[index]) {
+                updated[index].url = downloadURL;
+                updated[index].uploadProgress = 100;
+              }
+              return { ...prev, videos: updated };
+            });
+          } else if (type === 'edit') {
+            setEditFormData(prev => {
+              const updated = [...prev.videos];
+              if (updated[index]) {
+                updated[index].url = downloadURL;
+                updated[index].uploadProgress = 100;
+              }
+              return { ...prev, videos: updated };
+            });
+          } else if (type === 'uploadDialog') {
+            setUploadVideos(prev => {
+              const updated = [...prev];
+              if (updated[index]) {
+                updated[index].url = downloadURL;
+                updated[index].uploadProgress = 100;
+              }
+              return updated;
+            });
+          }
+          setUploadQueue(prev => prev.slice(1));
+          setIsUploading(false);
+        }
+      );
+    };
+
+    processQueue();
+  }, [uploadQueue, isUploading]);
+
+  // Fetch summary data
+  useEffect(() => {
+    const fetchSummaryData = async () => {
+      try {
+        const response = await adminSummary();
+        setSummaryData(response.data);
+        console.log("Summary Data:", response.data);
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-      } finally {
+        console.error('Error fetching summary data:', error);
+      }
+    };
+
+    fetchSummaryData();
+  }, []);
+
+  // Fetch courses data
+  useEffect(() => {
+    const fetchCoursesData = async () => {
+      try {
+        const response = await adminListCourses();
+        setApiCourses(response.data.results || []);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching courses data:', error);
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchCoursesData();
   }, []);
-
-  // Upload queue state
-  interface UploadQueueItem {
-    file: File;
-    courseFolder: string;
-    index: number;
-    type: 'new' | 'edit' | 'dialog';
-    onProgress: (progress: number) => void;
-    onComplete: (url: string) => void;
-    onError: (error: any) => void;
-  }
-  const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
-  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
-
-  useEffect(() => {
-    if (!isProcessingQueue && uploadQueue.length > 0) {
-      processNextInQueue();
-    }
-  }, [uploadQueue, isProcessingQueue]);
-
-  const processNextInQueue = async () => {
-    if (uploadQueue.length === 0) return;
-    setIsProcessingQueue(true);
-    const item = uploadQueue[0];
-
-    try {
-      const uploadResult = await uploadWithProgress(
-        import.meta.env.VITE_HOSTINGER_UPLOAD_URL || 'https://smartonlinelearningedu.com/hostinger_upload.php',
-        item.file,
-        item.courseFolder,
-        item.onProgress
-      );
-
-      if (uploadResult.status === 'success') {
-        item.onComplete(uploadResult.url);
-      } else {
-        item.onError(new Error(uploadResult.message || 'Upload failed'));
-      }
-    } catch (error: any) {
-      item.onError(error);
-    } finally {
-      setUploadQueue(prev => prev.slice(1));
-      setIsProcessingQueue(false);
-    }
-  };
   // Handle video file upload for upload dialog
-  const handleUploadDialogVideoFileChange = async (file: File, index: number) => {
-    if (!file || !selectedCourseId) {
-      if (!selectedCourseId) alert("Please select a course first");
-      return;
-    }
-
-    const selectedCourse = apiCourses.find(c => c.id.toString() === selectedCourseId);
-    const courseFolder = selectedCourse ? slugify(selectedCourse.title) : 'general';
-
-    setUploadQueue(prev => [...prev, {
-      file,
-      courseFolder,
-      index,
-      type: 'dialog',
-      onProgress: (progress) => {
-        setUploadVideos(prev => {
-          const updated = [...prev];
-          updated[index].uploadProgress = progress;
-          return updated;
-        });
-      },
-      onComplete: (url) => {
-        setUploadVideos(prev => {
-          const updated = [...prev];
-          updated[index].url = url;
-          updated[index].uploadProgress = 100;
-          return updated;
-        });
-      },
-      onError: (error) => {
-        alert('Video upload failed: ' + error.message);
-      }
-    }]);
+  const handleUploadDialogVideoFileChange = (file, index) => {
+    if (!file) return;
+    setUploadQueue(prev => [...prev, { file, index, type: 'uploadDialog' }]);
   };
 
   const addUploadDialogVideo = () => {
-    setUploadVideos([...uploadVideos, { title: "", description: "", duration: "", file: null, uploadProgress: 0, url: "" }]);
+    setUploadVideos([...uploadVideos, { id: Date.now(), title: "", description: "", duration: "", file: null, uploadProgress: 0, url: "" }]);
   };
 
   const removeUploadDialogVideo = async (index: number) => {
     const videoToRemove = uploadVideos[index];
     try {
-      if (videoToRemove.id && selectedCourseId) {
-        await adminDeleteCourseMedia(parseInt(selectedCourseId, 10), videoToRemove.id);
-        console.log(`✅ Video ${videoToRemove.id} deleted successfully from server.`);
+      if ((videoToRemove as any).id && selectedCourseId) {
+        await adminDeleteCourseMedia(parseInt(selectedCourseId, 10), (videoToRemove as any).id);
+        console.log(`✅ Video ${(videoToRemove as any).id} deleted successfully from server.`);
       } else {
         console.log("🟡 Video not uploaded yet, removing locally only.");
       }
@@ -441,7 +485,7 @@ export default function Dashboard() {
 
       setIsUploadVideoDialogOpen(false);
       setSelectedCourseId("");
-      setUploadVideos([{ title: "", description: "", duration: "", file: null, uploadProgress: 0, url: "" }]);
+      setUploadVideos([{ id: Date.now(), title: "", description: "", duration: "", file: null, uploadProgress: 0, url: "" }]);
     } catch (error) {
       console.error("❌ Error uploading videos:", error);
       alert("Failed to upload videos. Please try again.");
@@ -465,34 +509,9 @@ export default function Dashboard() {
   });
 
   // Handle video file upload for edit dialog
-  const handleEditVideoFileChange = async (file: File, index: number) => {
+  const handleEditVideoFileChange = (file, index) => {
     if (!file) return;
-    const courseFolder = editingCourse ? slugify(editingCourse.title) : 'general';
-
-    setUploadQueue(prev => [...prev, {
-      file,
-      courseFolder,
-      index,
-      type: 'edit',
-      onProgress: (progress) => {
-        setEditFormData(prev => {
-          const updatedVideos = [...prev.videos];
-          updatedVideos[index].uploadProgress = progress;
-          return { ...prev, videos: updatedVideos };
-        });
-      },
-      onComplete: (url) => {
-        setEditFormData(prev => {
-          const updatedVideos = [...prev.videos];
-          updatedVideos[index].url = url;
-          updatedVideos[index].uploadProgress = 100;
-          return { ...prev, videos: updatedVideos };
-        });
-      },
-      onError: (error) => {
-        alert('Video upload failed: ' + error.message);
-      }
-    }]);
+    setUploadQueue(prev => [...prev, { file, index, type: 'edit' }]);
   };
 
   const openEditDialog = (course: CourseWithVideos) => {
@@ -675,34 +694,9 @@ export default function Dashboard() {
   };
 
   // Handle video file upload
-  const handleVideoFileChange = async (file: File, index: number) => {
+  const handleVideoFileChange = (file, index) => {
     if (!file) return;
-    const courseFolder = newCourse.title ? slugify(newCourse.title) : 'general';
-
-    setUploadQueue(prev => [...prev, {
-      file,
-      courseFolder,
-      index,
-      type: 'new',
-      onProgress: (progress) => {
-        setNewCourse(prev => {
-          const updatedVideos = [...prev.videos];
-          updatedVideos[index].uploadProgress = progress;
-          return { ...prev, videos: updatedVideos };
-        });
-      },
-      onComplete: (url) => {
-        setNewCourse(prev => {
-          const updatedVideos = [...prev.videos];
-          updatedVideos[index].url = url;
-          updatedVideos[index].uploadProgress = 100;
-          return { ...prev, videos: updatedVideos };
-        });
-      },
-      onError: (error) => {
-        alert('Video upload failed: ' + error.message);
-      }
-    }]);
+    setUploadQueue(prev => [...prev, { file, index, type: 'new' }]);
   };
 
   const addVideoToEditCourse = () => {
@@ -865,31 +859,601 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Cards */}
-      <DashboardStats summaryData={summaryData} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {getStats(summaryData).map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <Card key={stat.title}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {stat.title}
+                </CardTitle>
+                <div className={`p-2 rounded-lg ${stat.color}`}>
+                  <Icon className="w-4 h-4 text-white" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-foreground">{stat.value}</div>
+                <div className="flex items-center text-xs text-muted-foreground">
+                  {stat.changeType === "increase" ? (
+                    <ArrowUpRight className="w-3 h-3 mr-1 text-green-500" />
+                  ) : (
+                    <ArrowDownRight className="w-3 h-3 mr-1 text-red-500" />
+                  )}
+                  <span className={stat.changeType === "increase" ? "text-green-500" : "text-red-500"}>
+                    {stat.change}
+                  </span>
+                  <span className="ml-1">from last month</span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
 
       {/* Analytics Charts */}
-      <DashboardCharts summaryData={summaryData} generateSampleData={generateSampleData} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Revenue Chart */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Revenue Analytics</CardTitle>
+                <CardDescription>Track revenue performance over time</CardDescription>
+              </div>
+              <div className="flex gap-2">
+                {/* <Select value={revenueYear.toString()} onValueChange={(value) => setRevenueYear(parseInt(value))}>
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map(year => (
+                      <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={revenuePeriod} onValueChange={(value: 'quarter' | 'month') => setRevenuePeriod(value)}>
+                  <SelectTrigger className="w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="quarter">Quarter</SelectItem>
+                    <SelectItem value="month">Month</SelectItem>
+                  </SelectContent>
+                </Select> */}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={summaryData?.revenue?.total ? [
+                  { period: 'Total Revenue', value: summaryData.revenue.total },
+                  { period: 'Last 7 Days', value: summaryData.revenue.last_7_days || 0 },
+                  { period: 'Last 30 Days', value: summaryData.revenue.last_30_days || 0 }
+                ] : generateSampleData('revenue', 3)}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis
+                    dataKey="period"
+                    className="text-muted-foreground"
+                    fontSize={12}
+                  />
+                  <YAxis
+                    className="text-muted-foreground"
+                    fontSize={12}
+                    tickFormatter={(value) => `$${value.toLocaleString()}`}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
+                    labelStyle={{ color: 'hsl(var(--foreground))' }}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--background))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '6px'
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Active Students Chart */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Active Students</CardTitle>
+                <CardDescription>Monitor student engagement trends</CardDescription>
+              </div>
+              <div className="flex gap-2">
+                {/* <Select value={studentsYear.toString()} onValueChange={(value) => setStudentsYear(parseInt(value))}>
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableYears.map(year => (
+                      <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select> */}
+                {/* <Select value={studentsPeriod} onValueChange={(value: 'quarter' | 'month') => setStudentsPeriod(value)}>
+                  <SelectTrigger className="w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="quarter">Quarter</SelectItem>
+                    <SelectItem value="month">Month</SelectItem>
+                  </SelectContent>
+                </Select> */}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={summaryData?.enrollments?.active ? [
+                  { period: 'Active Students', value: summaryData.enrollments.active },
+                  { period: 'Completed', value: summaryData.enrollments.completed || 0 },
+                  // { period: 'Total Users', value: summaryData.users.users_by_role.role=="student" || 0 }
+                  { period: 'Total Students', value: summaryData?.users_by_role?.find(r => r.role === 'student')?.count || 0 }
+                ] : generateSampleData('enrollments', 3)}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis
+                    dataKey="period"
+                    className="text-muted-foreground"
+                    fontSize={12}
+                  />
+                  <YAxis
+                    className="text-muted-foreground"
+                    fontSize={12}
+                    tickFormatter={(value) => value.toLocaleString()}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => [value.toLocaleString(), 'Students']}
+                    labelStyle={{ color: 'hsl(var(--foreground))' }}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--background))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '6px'
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    stroke="hsl(var(--accent-foreground))"
+                    strokeWidth={2}
+                    dot={{ fill: 'hsl(var(--accent-foreground))', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, stroke: 'hsl(var(--accent-foreground))', strokeWidth: 2 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Courses */}
-        <RecentCoursesList loading={loading} apiCourses={apiCourses} />
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Recent Courses</span>
+              <Button variant="ghost" size="sm">View All</Button>
+            </CardTitle>
+            <CardDescription>
+              Manage and monitor your latest courses
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {loading ? (
+              <div className="text-center py-4 text-muted-foreground">Loading courses...</div>
+            ) : (
+              apiCourses.slice(0, 5).map((course) => (
+                <Link
+                  key={course.id}
+                  to={`/course/${course.id}`}
+                  className="block hover:bg-accent/40 transition rounded-lg"
+                >
+                  <div className="flex items-center justify-between p-4 border border-border rounded-lg">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <h3 className="font-medium text-foreground">{course.title}</h3>
+                        <Badge variant={course.status === "published" ? "default" : "secondary"}>
+                          {course.status}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                        <span>Price: ${course.price}</span>
+                        <span>{course.media?.length || 0} media files</span>
+                        <div className="flex items-center">
+                          <Calendar className="w-3 h-3 mr-1 text-blue-500" />
+                          {new Date(course.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <p className="text-xs text-muted-foreground line-clamp-2">{course.description}</p>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))
+            )}
+          </CardContent>
+        </Card>
 
         {/* Course Content Editor */}
-        <CourseContentEditor
-          loading={loading}
-          apiCourses={apiCourses}
-          courses={courses}
-          openEditDialog={openEditDialog}
-        />
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Course Content</span>
+              <Badge variant="secondary">{courses.length}</Badge>
+            </CardTitle>
+            <CardDescription>
+              Edit course titles and content
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {loading ? (
+              <div className="text-center py-4 text-muted-foreground">Loading courses...</div>
+            ) : (
+              apiCourses.map((course) => (
+                <div key={course.id} className="p-3 border border-border rounded-lg">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-sm text-foreground">{course.title}</h4>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{course.description}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center text-xs text-muted-foreground">
+                      <Video className="w-3 h-3 mr-1" />
+                      {course.media?.length || 0} media files
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {course.status}
+                    </Badge>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="w-full text-xs h-7"
+                    onClick={() => {
+                      // Convert API course to CourseWithVideos format for editing
+                      const courseForEdit: CourseWithVideos = {
+                        id: course.id,
+                        title: course.title,
+                        description: course.description,
+                        instructor: "Admin", // API doesn't provide instructor info
+                        students: 0, // Would need to get from enrollments
+                        rating: 0, // Would need to get from reviews
+                        status: course.status,
+                        progress: 0,
+                        category: "General",
+                        price: parseFloat(course.price),
+                        duration: "0h 0m",
+                        thumbnail: course.thumbnail,
+                        videos: course.media?.map((media: any, index: number) => ({
+                          id: media.id,
+                          title: media.title,
+                          description: media.title,
+                          url: media.file,
+                          duration: media.duration || "0:00",
+                          order: media.order || index + 1
+                        })) || []
+                      };
+                      openEditDialog(courseForEdit);
+                    }}
+                  >
+                    <Edit className="w-3 h-3 mr-2" />
+                    Edit Content
+                  </Button>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Quick Actions */}
-      <QuickActionsGrid
-        setIsAddCourseDialogOpen={setIsAddCourseDialogOpen}
-        setIsUploadVideoDialogOpen={setIsUploadVideoDialogOpen}
-        setIsScheduleEventDialogOpen={setIsScheduleEventDialogOpen}
-        setIsIssueCertificateDialogOpen={setIsIssueCertificateDialogOpen}
-      />
+      <div className="relative">
+        <div className="absolute inset-0 backdrop-blur-[1px] bg-white/70 z-10 pointer-events-none rounded-lg"></div>
+        <Card className="opacity-80">
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>
+              Common tasks and shortcuts
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Button variant="outline" className="h-20 flex-col" onClick={() => setIsAddCourseDialogOpen(true)}>
+                <BookOpen className="w-6 h-6 mb-2" />
+                <span>Add New Course</span>
+              </Button>
+              <Button variant="outline" className="h-20 flex-col" onClick={() => setIsUploadVideoDialogOpen(true)}>
+                <Edit className="w-6 h-6 mb-2" />
+                <span>Edit Course</span>
+              </Button>
+              {/* Upload Videos Dialog */}
+              <Dialog open={isUploadVideoDialogOpen} onOpenChange={setIsUploadVideoDialogOpen}>
+                <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Upload Videos to Course</DialogTitle>
+                    <DialogDescription>
+                      Select a course and upload one or more videos.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="select-course">Select Course</Label>
+                      <select
+                        id="select-course"
+                        className="w-full border rounded px-2 py-1"
+                        value={selectedCourseId}
+                        onChange={e => setSelectedCourseId(e.target.value)}
+                      >
+                        <option value="">-- Select a course --</option>
+                        {apiCourses.map(course => (
+                          <option key={course.id} value={course.id}>{course.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base font-medium">Videos</Label>
+                        <Button type="button" size="sm" onClick={addUploadDialogVideo}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Video
+                        </Button>
+                      </div>
+                      {uploadVideos.map((video, index) => (
+                        <div key={index} className="p-4 border rounded-lg space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium">Video {index + 1}</h4>
+                            {uploadVideos.length > 1 && (
+                              <Button type="button" variant="ghost" size="sm" onClick={() => removeUploadDialogVideo(index)}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                              <Label>Video Title</Label>
+                              <Input
+                                value={video.title}
+                                onChange={e => {
+                                  const updated = [...uploadVideos];
+                                  updated[index].title = e.target.value;
+                                  setUploadVideos(updated);
+                                }}
+                                placeholder="Video title"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Duration</Label>
+                              <Input
+                                value={video.duration}
+                                onChange={e => {
+                                  const updated = [...uploadVideos];
+                                  updated[index].duration = e.target.value;
+                                  setUploadVideos(updated);
+                                }}
+                                placeholder="e.g. 25:30"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Video Description</Label>
+                            <Textarea
+                              value={video.description}
+                              onChange={e => {
+                                const updated = [...uploadVideos];
+                                updated[index].description = e.target.value;
+                                setUploadVideos(updated);
+                              }}
+                              placeholder="Video description"
+                              rows={2}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Upload Video File</Label>
+                            <Input
+                              type="file"
+                              accept="video/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const updated = [...uploadVideos];
+                                  updated[index].file = file;
+                                  updated[index].url = URL.createObjectURL(file);
+                                  setUploadVideos(updated);
+                                }
+                              }}
+                            />
+
+                            {video.url && (
+                              <video
+                                src={video.url}
+                                controls
+                                className="w-full mt-2 rounded-md border border-border"
+                              />
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button variant="outline" onClick={() => setIsUploadVideoDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleUploadVideosToCourse} disabled={!selectedCourseId || uploadVideos.some(v => !v.url)}>
+                        Upload to Course
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Button variant="outline" className="h-20 flex-col" onClick={() => setIsScheduleEventDialogOpen(true)}>
+                <Calendar className="w-6 h-6 mb-2" />
+                <span>Schedule Event</span>
+              </Button>
+              {/* Schedule Event Dialog */}
+              <Dialog open={isScheduleEventDialogOpen} onOpenChange={setIsScheduleEventDialogOpen}>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Schedule New Event</DialogTitle>
+                    <DialogDescription>
+                      Create and schedule an event for a course.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="event-title">Event Title</Label>
+                      <Input
+                        id="event-title"
+                        value={eventForm.title}
+                        onChange={e => setEventForm({ ...eventForm, title: e.target.value })}
+                        placeholder="Enter event title"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="event-date">Date</Label>
+                        <Input
+                          id="event-date"
+                          type="date"
+                          value={eventForm.date}
+                          onChange={e => setEventForm({ ...eventForm, date: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="event-time">Time</Label>
+                        <Input
+                          id="event-time"
+                          type="time"
+                          value={eventForm.time}
+                          onChange={e => setEventForm({ ...eventForm, time: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="event-course">Related Course</Label>
+                      <select
+                        id="event-course"
+                        className="w-full border rounded px-2 py-1"
+                        value={eventForm.courseId}
+                        onChange={e => setEventForm({ ...eventForm, courseId: e.target.value })}
+                      >
+                        <option value="">-- Select a course (optional) --</option>
+                        {apiCourses.map(course => (
+                          <option key={course.id} value={course.id}>{course.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="event-description">Description</Label>
+                      <Textarea
+                        id="event-description"
+                        value={eventForm.description}
+                        onChange={e => setEventForm({ ...eventForm, description: e.target.value })}
+                        placeholder="Event description"
+                        rows={2}
+                      />
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button variant="outline" onClick={() => setIsScheduleEventDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setScheduledEvents([...scheduledEvents, { ...eventForm, id: Date.now() }]);
+                          setIsScheduleEventDialogOpen(false);
+                          setEventForm({ title: '', date: '', time: '', description: '', courseId: '' });
+                        }}
+                        disabled={!eventForm.title || !eventForm.date || !eventForm.time}
+                      >
+                        Schedule
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              <Button variant="outline" className="h-20 flex-col" onClick={() => setIsIssueCertificateDialogOpen(true)}>
+                <Award className="w-6 h-6 mb-2" />
+                <span>Issue Certificate</span>
+              </Button>
+              {/* Issue Certificate Dialog */}
+              <Dialog open={isIssueCertificateDialogOpen} onOpenChange={setIsIssueCertificateDialogOpen}>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Issue Certificate</DialogTitle>
+                    <DialogDescription>
+                      Select a course and enter student details to issue a certificate.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="cert-student">Student Name or Email</Label>
+                      <Input
+                        id="cert-student"
+                        value={certificateForm.student}
+                        onChange={e => setCertificateForm({ ...certificateForm, student: e.target.value })}
+                        placeholder="Enter student name or email"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cert-course">Course</Label>
+                      <select
+                        id="cert-course"
+                        className="w-full border rounded px-2 py-1"
+                        value={certificateForm.courseId}
+                        onChange={e => setCertificateForm({ ...certificateForm, courseId: e.target.value })}
+                      >
+                        <option value="">-- Select a course --</option>
+                        {apiCourses.map(course => (
+                          <option key={course.id} value={course.id}>{course.title}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cert-date">Date</Label>
+                      <Input
+                        id="cert-date"
+                        type="date"
+                        value={certificateForm.date}
+                        onChange={e => setCertificateForm({ ...certificateForm, date: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button variant="outline" onClick={() => setIsIssueCertificateDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setCertificates([...certificates, { ...certificateForm, id: Date.now() }]);
+                          setIsIssueCertificateDialogOpen(false);
+                          setCertificateForm({ student: '', courseId: '', date: '' });
+                        }}
+                        disabled={!certificateForm.student || !certificateForm.courseId || !certificateForm.date}
+                      >
+                        Issue
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
 
       {/* Edit Course Dialog */}
@@ -930,125 +1494,87 @@ export default function Dashboard() {
                   </Button>
                 </div>
 
-                {editFormData.videos.length === 0 ? (
-                  <div className="text-center py-8 border border-dashed border-border rounded-lg">
-                    <Video className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-sm text-muted-foreground">No videos added yet</p>
-                    <Button type="button" variant="outline" size="sm" className="mt-2" onClick={addVideoToEditCourse}>
-                      Add First Video
-                    </Button>
-                  </div>
-                ) : (
-                  editFormData.videos.map((video, index) => (
-                    <div key={video.id} className="p-4 border rounded-lg space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium">Video {index + 1}</h4>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeVideoFromEditCourse(video.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="space-y-2">
-                          <Label>Session Name</Label>
-                          <Input
-                            value={video.session || ''}
-                            onChange={(e) => {
-                              const updatedVideos = editFormData.videos.map(v =>
-                                v.id === video.id ? { ...v, session: e.target.value } : v
-                              );
-                              setEditFormData({ ...editFormData, videos: updatedVideos });
-                            }}
-                            placeholder="e.g. Introduction"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Video Title</Label>
-                          <Input
-                            value={video.title}
-                            onChange={(e) => {
-                              const updatedVideos = editFormData.videos.map(v =>
-                                v.id === video.id ? { ...v, title: e.target.value } : v
-                              );
-                              setEditFormData({ ...editFormData, videos: updatedVideos });
-                            }}
-                            placeholder="Video title"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Duration</Label>
-                          <Input
-                            value={video.duration}
-                            onChange={(e) => {
-                              const updatedVideos = editFormData.videos.map(v =>
-                                v.id === video.id ? { ...v, duration: e.target.value } : v
-                              );
-                              setEditFormData({ ...editFormData, videos: updatedVideos });
-                            }}
-                            placeholder="e.g. 25:30"
-                          />
-                        </div>
-                      </div>
+                {editFormData.videos.map((video, index) => (
+                  <div key={video.id} className="p-4 border rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium">Video {index + 1}</h4>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeVideoFromEditCourse(video.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-2">
-                        <Label>Video Description</Label>
-                        <Textarea
-                          value={video.description}
+                        <Label>Video Title</Label>
+                        <Input
+                          value={video.title}
                           onChange={(e) => {
                             const updatedVideos = editFormData.videos.map(v =>
-                              v.id === video.id ? { ...v, description: e.target.value } : v
+                              v.id === video.id ? { ...v, title: e.target.value } : v
                             );
                             setEditFormData({ ...editFormData, videos: updatedVideos });
                           }}
-                          placeholder="Video description"
-                          rows={2}
+                          placeholder="Video title"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Upload Video File</Label>
+                        <Label>Duration</Label>
                         <Input
-                          type="file"
-                          accept="video/*"
+                          value={video.duration}
                           onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              handleEditVideoFileChange(file, index);
-                            }
+                            const updatedVideos = editFormData.videos.map(v =>
+                              v.id === video.id ? { ...v, duration: e.target.value } : v
+                            );
+                            setEditFormData({ ...editFormData, videos: updatedVideos });
                           }}
+                          placeholder="e.g. 25:30"
                         />
-                        {video.url && !video.file && (
-                          <video
-                            src={video.url}
-                            controls
-                            className="w-full mt-2 rounded-md border border-border"
-                          />
-                        )}
-                        {video.file && (
-                          <div className="space-y-2 mt-2">
-                            <div className="text-xs text-green-600 flex items-center justify-between">
-                              <span>✅ File selected: {video.file.name}</span>
-                              {video.uploadProgress !== undefined && (
-                                <span className="font-medium">{video.uploadProgress}%</span>
-                              )}
-                            </div>
-                            {video.uploadProgress !== undefined && (
-                              <Progress value={video.uploadProgress} className="h-2" />
-                            )}
-                            <span className="text-xs text-gray-500 block">
-                              {video.uploadProgress === undefined
-                                ? "Waiting in queue..."
-                                : video.uploadProgress === 100
-                                  ? "Upload complete!"
-                                  : "Uploading..."}
-                            </span>
-                          </div>
-                        )}
                       </div>
                     </div>
-                  )))}
+                    <div className="space-y-2">
+                      <Label>Video Description</Label>
+                      <Textarea
+                        value={video.description}
+                        onChange={(e) => {
+                          const updatedVideos = editFormData.videos.map(v =>
+                            v.id === video.id ? { ...v, description: e.target.value } : v
+                          );
+                          setEditFormData({ ...editFormData, videos: updatedVideos });
+                        }}
+                        placeholder="Video description"
+                        rows={2}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Upload Video File</Label>
+                      <Input
+                        type="file"
+                        accept="video/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const updatedVideos = editFormData.videos.map((v) =>
+                              v.id === video.id ? { ...v, file, url: URL.createObjectURL(file) } : v
+                            );
+                            setEditFormData({ ...editFormData, videos: updatedVideos });
+                          }
+                        }}
+                      />
+                      {video.url && (
+                        <video
+                          src={video.url}
+                          controls
+                          className="w-full mt-2 rounded-md border border-border"
+                        />
+                      )}
+
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <div className="flex justify-end space-x-2 pt-4">

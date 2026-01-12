@@ -232,6 +232,26 @@ CSRF_TRUSTED_ORIGINS = [
 # LOCAL DEV FIXES
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "access-control-allow-private-network",
+]
 SECURE_SSL_REDIRECT = False
 
 # Tap Payment Secret Key 
@@ -241,6 +261,6 @@ TAP_API_URL = "https://api.tap.company/v2"
 FRONTEND_URL = "http://localhost:8080"
 BACKEND_URL = "http://localhost:8000"
 
-print(f"DEBUG: CORS_ALLOW_ALL_ORIGINS = {locals().get('CORS_ALLOW_ALL_ORIGINS', 'Not Set')}")
+print(f"DEBUG: CORS_ALLOW_ALL_ORIGINS = {CORS_ALLOW_ALL_ORIGINS}")
 
 
